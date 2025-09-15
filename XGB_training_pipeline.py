@@ -1,3 +1,4 @@
+import utilz
 from Dataset import load_dataset
 
 from sklearn.metrics import classification_report, confusion_matrix
@@ -16,9 +17,11 @@ data_path = r"../data/counts_pancreatic_filtered.csv"
 ds = load_dataset(data_path, meta_path, label_col="Group")
 
 X_train, y_train, X_test, y_test = ds.training_split(test_size=0.5, random_state=42)
+
 # combine healthy and disease into one class
 y_train = y_train.replace({DISEASE: HEALTHY})
 y_test = y_test.replace({DISEASE: HEALTHY})
+
 
 """
 test_to_drop = y_test[y_test == DISEASE].index
@@ -31,12 +34,11 @@ y_train = y_train.drop(index=train_to_drop)
 X_train = X_train.drop(index=train_to_drop)
 """
 
+print("X train, y train shapes:")
 print(X_train.shape, y_train.shape)
+print("X test, y test shapes:")
 print(X_test.shape, y_test.shape)
-print(y_train.value_counts())
-print(y_test.value_counts())
-print(X_train)
-print(y_train)
+
 
 le = LabelEncoder()
 y_train_encoded = pd.Series(le.fit_transform(y_train), index=y_train.index)
@@ -51,6 +53,10 @@ pipeline = Pipeline([('bst', bst)])
 
 y_train_pred = pipeline.fit(X_train, y_train_encoded)
 y_pred = pipeline.predict(X_test)
+print("y test encoded:")
+print(y_test_encoded)
+print("y_pred")
+utilz.save_report(y_pred, y_test_encoded, ds, le)
 
 print(confusion_matrix(y_test_encoded, y_pred))
 print(classification_report(y_test_encoded, y_pred, target_names=le.classes_))
