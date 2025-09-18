@@ -23,22 +23,22 @@ le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(y), index=y.index)
 
 
-threshold_mean = 5
+threshold_mean = 4
 mean_per_gene = X.mean(axis=0)
 high_mean_genes = mean_per_gene[mean_per_gene > threshold_mean].index
 X = X[high_mean_genes]
 
-"""
+
 threshold_variance = 0.1
 variance_per_gene = X.var(axis=0)
 high_variance_genes = variance_per_gene[variance_per_gene > threshold_variance].index
 X = X[high_variance_genes]
-"""
+
 
 info_gain = mutual_info_classif(X, y_encoded, discrete_features=False, random_state=42, n_neighbors=5)
 gene_scores = pd.Series(info_gain, index=X.columns)
 gene_scores = gene_scores.sort_values(ascending=False)
-X = X[gene_scores.head(100).index]
+X = X[gene_scores.head(200).index]
 
 print(X.sample(1))
 print(X.shape)

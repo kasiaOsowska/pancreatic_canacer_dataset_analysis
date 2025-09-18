@@ -16,26 +16,26 @@ def save_report(y_pred, y_test_encoded, dataset, le):
     results = {}
 
     for cls, cls_code in class_map.items():
-        TP_idx = eval_df.index[(eval_df.y_true == cls_code) & (eval_df.y_pred == cls_code)]
-        FP_idx = eval_df.index[(eval_df.y_true != cls_code) & (eval_df.y_pred == cls_code)]
-        FN_idx = eval_df.index[(eval_df.y_true == cls_code) & (eval_df.y_pred != cls_code)]
-        TN_idx = eval_df.index[(eval_df.y_true != cls_code) & (eval_df.y_pred != cls_code)]
+        if len(class_map) ==2 and cls_code != 0:
+            TP_idx = eval_df.index[(eval_df.y_true == cls_code) & (eval_df.y_pred == cls_code)]
+            FP_idx = eval_df.index[(eval_df.y_true != cls_code) & (eval_df.y_pred == cls_code)]
+            FN_idx = eval_df.index[(eval_df.y_true == cls_code) & (eval_df.y_pred != cls_code)]
+            TN_idx = eval_df.index[(eval_df.y_true != cls_code) & (eval_df.y_pred != cls_code)]
 
-        results[cls] = {
-            "TP": TP_idx,
-            "FP": FP_idx,
-            "FN": FN_idx,
-            "TN": TN_idx,
-        }
+            results[cls] = {
+                "TP": TP_idx,
+                "FP": FP_idx,
+                "FN": FN_idx,
+                "TN": TN_idx,
+            }
 
-
-        for key in ["TP", "FP", "FN", "TN"]:
-            print(f"\n--- {key} samples metadata ---")
-            for idx in results[cls][key]:
-                sample_meta = dataset.meta.loc[idx]
-                print(f"{key} - Sample ID: {idx}, Metadata:")
-                print(sample_meta["Group"], sample_meta["Sex"], sample_meta["Age"], sample_meta["Stage"])
-                print("---")
+            for key in ["TP", "FP", "FN", "TN"]:
+                print(f"\n--- {key} samples metadata ---")
+                for idx in results[cls][key]:
+                    sample_meta = dataset.meta.loc[idx]
+                    print(f"{key} - Sample ID: {idx}, Metadata:")
+                    print(sample_meta["Group"], sample_meta["Sex"], sample_meta["Age"], sample_meta["Stage"])
+                    print("---")
 
     return
 

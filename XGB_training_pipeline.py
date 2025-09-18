@@ -45,7 +45,8 @@ y_train_encoded = pd.Series(le.fit_transform(y_train), index=y_train.index)
 y_test_encoded = pd.Series(le.transform(y_test), index=y_test.index)
 cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-bst = XGBClassifier(n_estimators=200, max_depth=5, learning_rate=0.05, objective='binary:logistic',
+bst = XGBClassifier(n_estimators=220, max_depth=3, learning_rate=0.06, objective='binary:logistic',
+                    colsample_bytree = 0.8, reg_lambda = 3.0, gamma = 0, min_child_weight = 1,
                     subsample = 0.9)
 scaler = StandardScaler()
 pipeline = Pipeline([('bst', bst)])

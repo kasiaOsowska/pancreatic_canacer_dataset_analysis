@@ -48,11 +48,16 @@ pipeline = Pipeline([('bst', bst)])
 
 param_grid = {
     'bst__colsample_bytree': [0.7, 0.8],
-    'bst__reg_lambda': [1.0, 2.0],
-    'bst__gamma': [0, 1]
+    'bst__reg_lambda': [2.0, 3.0],
+    'bst__gamma': [0, 1],
+    'bst__min_child_weight': [1, 2],
+    'bst__n_estimators': [200, 220],
+    'bst__max_depth': [3, 4],
+    'bst__learning_rate': [0.05, 0.06],
+    'bst__subsample': [0.8, 0.9]
 }
 
-cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+cv = StratifiedKFold(n_splits=2, shuffle=True, random_state=42)
 
 grid = GridSearchCV(
     estimator=pipeline,
