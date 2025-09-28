@@ -4,6 +4,17 @@ HEALTHY = "Asymptomatic controls"
 DISEASE = "Pancreatic diseases"
 CANCER = "Pancreatic cancer"
 
+# ARTICLES
+KRAS = "ENSG00000133703"
+TP53 = "ENSG00000141510"
+SMAD4 = "ENSG00000141646"
+
+
+# MINIMAL P-VALUE GENES
+BCAP31 = "ENSG00000185825"
+ARL2 = "ENSG00000213465"
+CFL1 = "ENSG00000172757"
+MYL9 = "ENSG00000101335"
 
 def save_report(y_pred, y_test_encoded, dataset, le):
     y_true = y_test_encoded

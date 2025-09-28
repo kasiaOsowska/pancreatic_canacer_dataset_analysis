@@ -38,7 +38,8 @@ def load_dataset(path_csv, path_xlsx, label_col=None):
     df_metadata = pd.read_excel(path_xlsx, index_col=0)
     intersect = df_features.index.intersection(df_metadata.index)
 
-    print(f"[INFO] skipped {len(df_features.index) - len(intersect)} probs due to missing metadata")
+    if len(df_features.index) != len(intersect):
+        print(f"[INFO] skipped {len(df_features.index) - len(intersect)} probs due to missing metadata")
 
     df_features = df_features.loc[intersect].sort_index()
     meta = df_metadata.loc[intersect].sort_index()
