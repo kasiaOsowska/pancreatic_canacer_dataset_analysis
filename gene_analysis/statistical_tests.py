@@ -40,10 +40,15 @@ def calculate_statistical_tests(X, y, gene_name):
 
     plt.figure()
     plt.scatter(X, y_labels, label="Train points", alpha=0.7)
+    means = X.groupby(y).mean()
+    for cls, mean_val in means.items():
+        class_str = class_map[cls]
+        plt.plot([mean_val, mean_val], [class_str, class_str],
+                 marker="|", markersize=25, color="black", linewidth=2,
+                 label=f"{class_str} mean = {mean_val:.2f}")
     plt.xlabel(gene_name + " expression")
     plt.savefig(f"graphics/{gene_name}_expression_scatter.png")
     plt.show()
-
 
     plt.figure(figsize=(6, 6))
     plt.plot(fpr, tpr, label=f"ROC curve (AUC = {auc:.3f})")

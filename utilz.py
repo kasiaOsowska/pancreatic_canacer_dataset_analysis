@@ -16,7 +16,7 @@ ARL2 = "ENSG00000213465"
 CFL1 = "ENSG00000172757"
 MYL9 = "ENSG00000101335"
 
-def save_report(y_pred, y_test_encoded, dataset, le):
+def show_report(y_pred, y_test_encoded, dataset, le):
     y_true = y_test_encoded
     y_pred_s = pd.Series(y_pred, index=y_true.index, name="y_pred")
 

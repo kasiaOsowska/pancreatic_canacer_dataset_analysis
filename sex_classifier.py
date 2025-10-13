@@ -4,44 +4,41 @@ from Dataset import load_dataset
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
-import pandas as pd
+from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
-from xgboost import XGBClassifier, plot_tree, plot_importance
-import xgboost as xgb
-from sklearn.model_selection import StratifiedKFold
+from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
 from utilz import *
-from dtreeviz import model
-import matplotlib.pyplot as plt
-import graphviz
 
 
+meta_path = r"../data/samples_pancreatic_filtered_sex.xlsx"
+data_path = r"../data/counts_pancreatic_filtered_sex.csv"
 
-meta_path = r"../data/samples_pancreatic_filtered.xlsx"
-data_path = r"../data/counts_pancreatic_filtered.csv"
-
-ds = load_dataset(data_path, meta_path, label_col="Group")
-
-# combine healthy and disease into one class
-ds.y = ds.y.replace({DISEASE: HEALTHY})
+ds = load_dataset(data_path, meta_path, label_col="Sex")
+ds.y = ds.y.dropna()
 X_train, X_test, y_train, y_test = train_test_split(ds.X, ds.y, test_size=0.5,
                                                     random_state=42, stratify=ds.y)
+
+
 
 print("X train, y train shapes:")
 print(X_train.shape, y_train.shape)
 print("X test, y test shapes:")
 print(X_test.shape, y_test.shape)
 
+
 le = LabelEncoder()
 y_train_encoded = pd.Series(le.fit_transform(y_train), index=y_train.index)
 y_test_encoded = pd.Series(le.transform(y_test), index=y_test.index)
 
-bst = XGBClassifier(n_estimators=220, max_depth=3, learning_rate=0.06, objective='binary:logistic',
-                    colsample_bytree = 0.8, reg_lambda = 3.0, gamma = 0, min_child_weight = 1,
-                    subsample = 0.9)
-scaler = StandardScaler()
-pipeline = Pipeline([('bst', bst)])
+model = LogisticRegression(
+    penalty='l2', solver='lbfgs', max_iter=500,
+    class_weight='balanced',
+)
 
+scaler = StandardScaler()
+pca = PCA(n_components=1, svd_solver='full')
+pipeline = Pipeline([('scaler', scaler), ('model', model)])
 
 y_train_pred = pipeline.fit(X_train, y_train_encoded)
 y_pred = pipeline.predict(X_test)
@@ -50,5 +47,5 @@ print(y_test_encoded)
 print("y_pred")
 utilz.show_report(y_pred, y_test_encoded, ds, le)
 
-print(confusion_matrix(y_test_encoded, y_pred))
+print(confusion_matrix(y_test_encoded, y_pred, labels=[0, 1]))
 print(classification_report(y_test_encoded, y_pred, target_names=le.classes_))

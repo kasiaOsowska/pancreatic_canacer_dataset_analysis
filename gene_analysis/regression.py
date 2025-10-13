@@ -12,7 +12,7 @@ meta_path = r"../../data/samples_pancreatic.xlsx"
 data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
-ds.X = ds.X[ARL2]
+ds.X = ds.X[BCAP31]
 print(ds.X)
 
 X_train, y_train, X_test, y_test = ds.training_split(test_size=0.2, random_state=42)

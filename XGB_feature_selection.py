@@ -5,11 +5,11 @@ import pandas as pd
 from sklearn.feature_selection import mutual_info_classif
 import matplotlib.pyplot as plt
 from utilz import *
-from xgboost import XGBClassifier
+from xgboost import XGBClassifier, plot_tree
 
 
-meta_path = r"../data/samples_pancreatic.xlsx"
-data_path = r"../data/counts_pancreatic.csv"
+meta_path = r"../data/samples_pancreatic_filtered.xlsx"
+data_path = r"../data/counts_pancreatic_filtered.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
 X = ds.X
@@ -23,7 +23,8 @@ print(X.shape)
 le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(y), index=y.index)
 
-bst = XGBClassifier(n_estimators=200, max_depth=5, learning_rate=0.05, objective='binary:logistic',
+bst = XGBClassifier(n_estimators=220, max_depth=3, learning_rate=0.06, objective='binary:logistic',
+                    colsample_bytree = 0.8, reg_lambda = 3.0, gamma = 0, min_child_weight = 1,
                     subsample = 0.9)
 bst.fit(ds.X, y_encoded)
 importance_dict = bst.get_booster().get_score(importance_type='gain')
@@ -33,5 +34,7 @@ importance_df = (
 )
 
 print(importance_df.head(20))
+
+
 
 

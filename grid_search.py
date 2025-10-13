@@ -32,17 +32,11 @@ y_train = y_train.drop(index=train_to_drop)
 X_train = X_train.drop(index=train_to_drop)
 """
 
-print(X_train.shape, y_train.shape)
-print(X_test.shape, y_test.shape)
-print(y_train.value_counts())
-print(y_test.value_counts())
-print(X_train)
-print(y_train)
-
 le = LabelEncoder()
 y_train_encoded = pd.Series(le.fit_transform(y_train), index=y_train.index)
 y_test_encoded = pd.Series(le.transform(y_test), index=y_test.index)
-bst = XGBClassifier(n_estimators=200, max_depth=5, learning_rate=0.05, subsample = 0.9, objective='binary:logistic')
+bst = XGBClassifier(n_estimators=200, max_depth=5, learning_rate=0.05, subsample = 0.9,
+                    objective='binary:logistic')
 scaler = StandardScaler()
 pipeline = Pipeline([('bst', bst)])
 
@@ -53,7 +47,7 @@ param_grid = {
     'bst__min_child_weight': [1, 2],
     'bst__n_estimators': [200, 220],
     'bst__max_depth': [3, 4],
-    'bst__learning_rate': [0.05, 0.06],
+    'bst__learning_rate': [0.04, 0.05, 0.055, 0.06],
     'bst__subsample': [0.8, 0.9]
 }
 
