@@ -6,8 +6,8 @@ from sklearn.feature_selection import mutual_info_classif
 import matplotlib.pyplot as plt
 
 
-meta_path = r"../data/samples_pancreatic.xlsx"
-data_path = r"../data/counts_pancreatic.csv"
+meta_path = r"../../data/samples_pancreatic.xlsx"
+data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
 X = ds.X

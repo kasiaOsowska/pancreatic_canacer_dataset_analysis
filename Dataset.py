@@ -44,6 +44,6 @@ def load_dataset(path_csv, path_xlsx, label_col=None):
     df_features = df_features.loc[intersect].sort_index()
     meta = df_metadata.loc[intersect].sort_index()
 
-    y = meta[label_col] if label_col is not None else None
+    y = meta[label_col] if label_col is not None else "Group"
 
     return Dataset(X=df_features, meta=meta, y=y)

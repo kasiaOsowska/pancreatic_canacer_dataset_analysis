@@ -37,7 +37,6 @@ model = LogisticRegression(
 )
 
 scaler = StandardScaler()
-pca = PCA(n_components=1, svd_solver='full')
 pipeline = Pipeline([('scaler', scaler), ('model', model)])
 
 y_train_pred = pipeline.fit(X_train, y_train_encoded)

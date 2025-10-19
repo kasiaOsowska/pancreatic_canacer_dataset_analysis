@@ -28,10 +28,10 @@ for gene in ds.X.columns:
     X = ds.X[gene]
     X_female = X[y == "F"]
     X_male = X[y == "M"]
-    t_stat, p_val = mannwhitneyu(X_female, X_male, alternative="two-sided")
+    u_stat, p_val = mannwhitneyu(X_female, X_male, alternative="two-sided")
     auc = roc_auc_score(y_encoded, X)
 
-    if p_val < 1e-6 and auc > 0.5:
+    if p_val < 1e-6 and abs(0.5-auc) > 0.1:
         print(f"Gene: {gene}, p-value: {p_val:.3e}")
         gene_pvals.append((gene, p_val))
 

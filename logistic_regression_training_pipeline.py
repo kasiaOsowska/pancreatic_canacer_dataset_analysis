@@ -1,14 +1,12 @@
 import utilz
 from Dataset import load_dataset
 
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_predict, LeaveOneOut
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
-from sklearn.decomposition import PCA
-from sklearn.metrics import roc_auc_score, roc_curve
 import matplotlib.pyplot as plt
 from utilz import *
 
@@ -20,43 +18,79 @@ ds = load_dataset(data_path, meta_path, label_col="Group")
 
 # combine healthy and disease into one class
 ds.y = ds.y.replace({DISEASE: HEALTHY})
-X_train, X_test, y_train, y_test = train_test_split(ds.X, ds.y, test_size=0.5,
-                                                    random_state=42, stratify=ds.y)
-
-print("X train, y train shapes:")
-print(X_train.shape, y_train.shape)
-print("X test, y test shapes:")
-print(X_test.shape, y_test.shape)
-
 
 le = LabelEncoder()
-y_train_encoded = pd.Series(le.fit_transform(y_train), index=y_train.index)
-y_test_encoded = pd.Series(le.transform(y_test), index=y_test.index)
+y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
 model = LogisticRegression(
-    penalty='l2', solver='lbfgs', max_iter=500,
+    penalty='l2', solver='lbfgs', max_iter=1000,
+    class_weight='balanced',
+)
+scaler = StandardScaler()
+pipeline = Pipeline([('scaler', scaler), ('model', model)])
+
+y_pred = cross_val_predict(pipeline, ds.X, y_encoded, cv=LeaveOneOut(), n_jobs=-1)
+cm = confusion_matrix(y_encoded, y_pred, labels=range(len(le.classes_)))
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=le.classes_)
+disp.plot(cmap="Blues", colorbar=False)
+plt.title("Macierz pomyłek (Leave-One-Out)")
+plt.show()
+print("Macierz pomyłek:\n", cm)
+print("\nRaport klasyfikacji:\n", classification_report(y_encoded, y_pred, target_names=le.classes_))
+
+sex = ds.meta['Sex']
+
+mask_f = sex == 'F'
+mask_m = sex == 'M'
+
+X_female = ds.X.loc[mask_f]
+y_female = ds.y.loc[mask_f]
+
+X_male   = ds.X.loc[mask_m]
+y_male   = ds.y.loc[mask_m]
+
+le_female = LabelEncoder()
+le_male = LabelEncoder()
+
+y_female_encoded = pd.Series(le_female.fit_transform(y_female), index=y_female.index)
+y_male_encoded = pd.Series(le_male.fit_transform(y_male), index=y_male.index)
+
+
+model_female = LogisticRegression(
+    penalty='l2', solver='lbfgs', max_iter=1000,
     class_weight='balanced',
 )
 
-scaler = StandardScaler()
-pca = PCA(n_components=1, svd_solver='full')
-pipeline = Pipeline([('scaler', scaler), ('model', model)])
+scaler_female = StandardScaler()
+pipeline_female = Pipeline([('scaler', scaler_female), ('model', model_female)])
 
-y_train_pred = pipeline.fit(X_train, y_train_encoded)
-y_pred = pipeline.predict(X_test)
-y_proba = pipeline.predict_proba(X_test)
-print(y_proba)
+y_pred_female = cross_val_predict(pipeline_female, X_female, y_female_encoded, cv=LeaveOneOut(), n_jobs=-1)
+cm = confusion_matrix(y_female_encoded, y_pred_female, labels=range(len(le_female.classes_)))
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=le_female.classes_)
+disp.plot(cmap="Blues", colorbar=False)
+plt.title("Macierz pomyłek (Leave-One-Out) female")
+plt.show()
+print("Macierz pomyłek:\n", cm)
+print("\nRaport klasyfikacji:\n", classification_report(y_female_encoded,
+                                                        y_pred_female, target_names=le_female.classes_))
 
-utilz.show_report(y_pred, y_test_encoded, ds, le)
-
-cm = confusion_matrix(y_test_encoded, y_pred, labels=le.transform(le.classes_))
-cm_df = pd.DataFrame(
-    cm,
-    index=[f"Prawdziwe: {cls}" for cls in le.classes_],
-    columns=[f"Przewidziane: {cls}" for cls in le.classes_]
+# male classifier
+model_male = LogisticRegression(
+    penalty='l2', solver='lbfgs', max_iter=1000,
+    class_weight='balanced',
 )
+scaler_male = StandardScaler()
+pipeline_male = Pipeline([('scaler', scaler_male), ('model', model_male)])
+y_pred_male = cross_val_predict(pipeline_male, X_male, y_male_encoded, cv=LeaveOneOut(), n_jobs=-1)
+cm = confusion_matrix(y_male_encoded, y_pred_male, labels=range(len(le_male.classes_)))
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=le_male.classes_)
+disp.plot(cmap="Blues", colorbar=False)
+plt.title("Macierz pomyłek (Leave-One-Out) male")
+plt.show()
+print("Macierz pomyłek:\n", cm)
+print("\nRaport klasyfikacji:\n", classification_report(y_male_encoded, y_pred_male, target_names=le_male.classes_))
 
-print("\nMacierz pomyłek:")
-print(cm_df)
-print(classification_report(y_test_encoded, y_pred, target_names=le.classes_))
+
+
+
 
