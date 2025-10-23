@@ -1,10 +1,6 @@
-from Dataset import load_dataset
-
 from sklearn.preprocessing import LabelEncoder
-import pandas as pd
-from sklearn.feature_selection import mutual_info_classif
-import matplotlib.pyplot as plt
 from utilz import *
+from Dataset import load_dataset
 
 
 meta_path = r"../data/samples_pancreatic.xlsx"

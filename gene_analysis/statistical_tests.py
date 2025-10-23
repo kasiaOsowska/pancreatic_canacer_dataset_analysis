@@ -57,7 +57,7 @@ def calculate_statistical_tests(X, y, gene_name):
     plt.ylabel("True Positive Rate (sensitivity)")
     plt.title("ROC curve for " + gene_name)
     plt.legend()
-    plt.grid(alpha=0.3)
+    plt.grid(alpha=0.1)
     plt.savefig(f"graphics/{gene_name}_fpr_tpr.png")
     plt.show()
 

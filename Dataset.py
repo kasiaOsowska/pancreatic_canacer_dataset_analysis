@@ -6,10 +6,23 @@ import pandas as pd
 from utilz import *
 
 class Dataset:
-    def __init__(self, X, meta, y=None):
+    def __init__(self, X, meta, y=None, ):
         self.X = X
         self.meta = meta
         self.y = y
+
+        sex = self.meta['Sex']
+        mask_f = sex == 'F'
+        mask_m = sex == 'M'
+        X_female = self.X.loc[mask_f]
+        y_female = self.y.loc[mask_f]
+        X_male = self.X.loc[mask_m]
+        y_male = self.y.loc[mask_m]
+
+        self.X_female = X_female
+        self.y_female = y_female
+        self.X_male = X_male
+        self.y_male = y_male
 
     def training_split(self, test_size=0.2, random_state=42):
         X_train_list, X_test_list, y_train_list, y_test_list = [], [], [], []
