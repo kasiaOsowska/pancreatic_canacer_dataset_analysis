@@ -1,13 +1,16 @@
 from Dataset import load_dataset
-from scipy.stats import mannwhitneyu
+from scipy.stats import mannwhitneyu, levene
+import scipy.stats as stats
 from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.preprocessing import LabelEncoder
 from utilz import *
 from matplotlib import pyplot as plt
+import numpy as np
 
 
 def calculate_statistical_tests(X, y, gene_name):
     print(f"Statistical tests for gene: {gene_name}")
+    X = np.log(X)
     X_healthy = X[y == HEALTHY]
     X_disease = X[y == DISEASE]
 
@@ -60,6 +63,14 @@ def calculate_statistical_tests(X, y, gene_name):
     plt.grid(alpha=0.1)
     plt.savefig(f"graphics/{gene_name}_fpr_tpr.png")
     plt.show()
+
+    stat, p = levene(X_cancer, X_healthy)
+    print(f"Statystyka testu: {stat:.3f}, p-value: {p:.3f}")
+
+    if p > 0.05:
+        print("Wariancje są jednorodne (homoskedastyczność).")
+    else:
+        print("Wariancje różnią się (heteroskedastyczność).")
 
 
 

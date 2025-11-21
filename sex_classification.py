@@ -19,8 +19,6 @@ ds.y = ds.y.dropna()
 X_train, X_test, y_train, y_test = train_test_split(ds.X, ds.y, test_size=0.5,
                                                     random_state=42, stratify=ds.y)
 
-
-
 print("X train, y train shapes:")
 print(X_train.shape, y_train.shape)
 print("X test, y test shapes:")

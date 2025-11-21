@@ -7,7 +7,6 @@ meta_path = r"../../data/samples_pancreatic.xlsx"
 data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Sex")
-meta = ds.meta
 
 probs_to_drop = ds.y[ds.y == "n.a."].index
 
@@ -39,9 +38,7 @@ X_new = ds.X[sorted_genes].copy()
 print(ds.X.shape)
 print(X_new.shape)
 print(X_new.head())
-X_new = X_new.T
-X_new.to_csv(r"../../data/counts_pancreatic_filtered_sex.csv", sep=";", decimal=",")
-meta.to_excel(r"../../data/samples_pancreatic_filtered_sex.xlsx")
+X_new.T.to_csv(r"../../data/counts_pancreatic_filtered_sex.csv", sep=";", decimal=",")
 num_pca_components = 2
 plot_pca(X_new, y_encoded, num_pca_components, le)
 

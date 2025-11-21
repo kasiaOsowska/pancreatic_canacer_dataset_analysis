@@ -12,6 +12,7 @@ class Dataset:
         self.y = y
 
         sex = self.meta['Sex']
+        # some of the samples have sex set to n.a.
         mask_f = sex == 'F'
         mask_m = sex == 'M'
         X_female = self.X.loc[mask_f]
