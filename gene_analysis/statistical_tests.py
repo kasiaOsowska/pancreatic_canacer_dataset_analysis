@@ -10,7 +10,6 @@ import numpy as np
 
 def calculate_statistical_tests(X, y, gene_name):
     print(f"Statistical tests for gene: {gene_name}")
-    X = np.log(X)
     X_healthy = X[y == HEALTHY]
     X_disease = X[y == DISEASE]
 
@@ -79,6 +78,7 @@ data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
 
+"""
 X_TP53 = ds.X[TP53]
 calculate_statistical_tests(X_TP53, ds.y, "TP53")
 X_SMAD4 = ds.X[SMAD4]
@@ -94,4 +94,11 @@ calculate_statistical_tests(X_BCAP31, ds.y, "BCAP31")
 X_CFL1= ds.X[CFL1]
 calculate_statistical_tests(X_CFL1, ds.y, "MAGOHB")
 X_MYL9 = ds.X[MYL9]
-calculate_statistical_tests(X_MYL9, ds.y, "PLD4")
+calculate_statistical_tests(X_MYL9, ds.y, "X_MYL9")
+
+"""
+worst = ds.X["ENSG00000212694"]
+calculate_statistical_tests(worst, ds.y, "ENSG00000212694")
+
+best = ds.X["ENSG00000102230"]
+calculate_statistical_tests(best, ds.y, "ENSG00000102230")

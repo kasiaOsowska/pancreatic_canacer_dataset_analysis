@@ -1,5 +1,5 @@
 # structure:
-# dataset.X : DataFrame (rows: samples x columns: features)
+# dataset.X : DataFrame (rows: samples x columns: features(genes))
 # dataset.meta : DataFrame (samples x metadata)
 # dataset.y : Series (labels, optional)
 import pandas as pd

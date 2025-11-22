@@ -1,6 +1,7 @@
 from scipy.stats import mannwhitneyu
 from utilz import *
 from sklearn.base import BaseEstimator, TransformerMixin
+import numpy as np
 
 
 class PValueReductor(BaseEstimator, TransformerMixin):
@@ -27,6 +28,9 @@ class PValueReductor(BaseEstimator, TransformerMixin):
         print("data shape after PValueReductor: ", X.shape)
         return X
 
+    def get_feature_names_out(self, input_features=None):
+        return self.selected_genes_
+
 class VarianceExpressionReductor(BaseEstimator, TransformerMixin):
     def __init__(self, v_threshold=0.1):
         self.selected_genes_ = None
@@ -41,6 +45,9 @@ class VarianceExpressionReductor(BaseEstimator, TransformerMixin):
         X = X[self.selected_genes_]
         print("data shape after VarianceExpressionReductor: ", X.shape)
         return X
+
+    def get_feature_names_out(self, input_features=None):
+        return self.selected_genes_
 
 class MeanExpressionReductor(BaseEstimator, TransformerMixin):
     def __init__(self, mean_threshold=3):
@@ -57,14 +64,19 @@ class MeanExpressionReductor(BaseEstimator, TransformerMixin):
         print("data shape after MeanExpressionReductor: ", X.shape)
         return X
 
+    def get_feature_names_out(self, input_features=None):
+        return self.selected_genes_
+
 class MinValueAdjustment(BaseEstimator, TransformerMixin):
     def __init__(self, method = "subtract"):
         self.method = method
+        self._feature_names_ = None
         self.min_value = 0
 
     def fit(self, X, y=None):
         self.min_value = X.min().min()
         print("min value: ", self.min_value)
+        self._feature_names_ = X.columns
         return self
 
     def transform(self, X):
@@ -75,5 +87,25 @@ class MinValueAdjustment(BaseEstimator, TransformerMixin):
                 X = X - self.min_value
             case _:
                 print(f"Unknown method: {self.method}, skipping")
-        print("data shape after MinValueAdjustment: ", X.shape)
         return X
+
+    def get_feature_names_out(self, input_features=None):
+        return np.array(self._feature_names_)
+
+
+class NoneInformativeGeneReductor(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        self.selected_genes_ = None
+
+    def fit(self, X, y=None):
+        diff_sum = X.diff().abs().sum(axis=0)
+        self.selected_genes_ = diff_sum[diff_sum != 0].index
+        return self
+
+    def transform(self, X):
+        X = X[self.selected_genes_]
+        print("data shape after NoneInformativeGeneReductor: ", X.shape)
+        return X
+
+    def get_feature_names_out(self, input_features=None):
+        return self.selected_genes_
