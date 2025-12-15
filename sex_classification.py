@@ -3,16 +3,14 @@ from Dataset import load_dataset
 
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import Pipeline
-from sklearn.decomposition import PCA
 from sklearn.model_selection import train_test_split
+from preprocessing_utilz import *
 from utilz import *
 
 
-meta_path = r"../data/samples_pancreatic_filtered_sex.xlsx"
-data_path = r"../data/counts_pancreatic_filtered_sex.csv"
+meta_path = r"../data/samples_pancreatic.xlsx"
+data_path = r"../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Sex")
 ds.y = ds.y.dropna()
@@ -35,7 +33,11 @@ model = LogisticRegression(
 )
 
 scaler = StandardScaler()
-pipeline = Pipeline([('scaler', scaler), ('model', model)])
+pipeline = Pipeline([
+    ('PValueReductor', PValueReductor(0.005)),
+    ('MinValueAdjustment', MinValueAdjustment("subtract")),
+    ('scaler', StandardScaler()), ('model', model)
+])
 
 y_train_pred = pipeline.fit(X_train, y_train_encoded)
 y_pred = pipeline.predict(X_test)

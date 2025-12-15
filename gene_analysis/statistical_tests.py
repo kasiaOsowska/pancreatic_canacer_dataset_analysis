@@ -41,7 +41,7 @@ def calculate_statistical_tests(X, y, gene_name):
     y_labels = y.map(class_map)
 
     plt.figure()
-    plt.scatter(X, y_labels, label="Train points", alpha=0.7)
+    plt.scatter(X, y_labels, label="Train points", alpha=0.3)
     means = X.groupby(y).mean()
     for cls, mean_val in means.items():
         class_str = class_map[cls]
@@ -63,14 +63,6 @@ def calculate_statistical_tests(X, y, gene_name):
     plt.savefig(f"graphics/{gene_name}_fpr_tpr.png")
     plt.show()
 
-    stat, p = levene(X_cancer, X_healthy)
-    print(f"Statystyka testu: {stat:.3f}, p-value: {p:.3f}")
-
-    if p > 0.05:
-        print("Wariancje są jednorodne (homoskedastyczność).")
-    else:
-        print("Wariancje różnią się (heteroskedastyczność).")
-
 
 
 meta_path = r"../../data/samples_pancreatic.xlsx"
@@ -78,7 +70,7 @@ data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
 
-"""
+
 X_TP53 = ds.X[TP53]
 calculate_statistical_tests(X_TP53, ds.y, "TP53")
 X_SMAD4 = ds.X[SMAD4]
@@ -92,13 +84,14 @@ calculate_statistical_tests(X_ARL2, ds.y, "ARL2")
 X_BCAP31 = ds.X[BCAP31]
 calculate_statistical_tests(X_BCAP31, ds.y, "BCAP31")
 X_CFL1= ds.X[CFL1]
-calculate_statistical_tests(X_CFL1, ds.y, "MAGOHB")
+calculate_statistical_tests(X_CFL1, ds.y, "CFL1")
 X_MYL9 = ds.X[MYL9]
-calculate_statistical_tests(X_MYL9, ds.y, "X_MYL9")
+calculate_statistical_tests(X_MYL9, ds.y, "MYL9")
 
 """
-worst = ds.X["ENSG00000212694"]
-calculate_statistical_tests(worst, ds.y, "ENSG00000212694")
+worst = ds.X["ENSG00000099783"]
+calculate_statistical_tests(worst, ds.y, "ENSG00000099783")
 
 best = ds.X["ENSG00000102230"]
 calculate_statistical_tests(best, ds.y, "ENSG00000102230")
+"""

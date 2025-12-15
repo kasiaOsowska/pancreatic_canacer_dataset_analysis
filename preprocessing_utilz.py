@@ -1,5 +1,4 @@
 from scipy.stats import mannwhitneyu
-from utilz import *
 from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
 

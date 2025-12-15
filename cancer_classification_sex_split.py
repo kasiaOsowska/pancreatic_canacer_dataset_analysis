@@ -17,6 +17,8 @@ data_path = r"../data/counts_pancreatic.csv"
 ds = load_dataset(data_path, meta_path, label_col="Group")
 
 
+# FEMALE CLASSIFICATION -----------------------
+
 ds.y_female = ds.y_female.replace({DISEASE: HEALTHY})
 ds.y_male = ds.y_male.replace({DISEASE: HEALTHY})
 X_female = ds.X_female
@@ -56,6 +58,7 @@ print("Classification report:\n", classification_report(y_test_female,
                                                         y_pred_female, target_names=le.classes_))
 
 
+# MALE CLASSIFICATION -----------------------
 model_male = LogisticRegression(
     penalty='elasticnet', solver='saga', max_iter=1500,
     class_weight='balanced', l1_ratio = 0.8, C = 2

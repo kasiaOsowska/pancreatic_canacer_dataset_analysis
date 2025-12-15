@@ -66,7 +66,6 @@ def plot_pca(X, y_encoded, n_compontns, le):
     evr = viz_pipe.named_steps["pca"].explained_variance_ratio_
     classes = le.classes_
     y_test_int = y_encoded.values
-    cmap = plt.get_cmap("tab10")
 
     plt.figure(figsize=(7, 6))
     for i in range(n_compontns):

@@ -1,10 +1,14 @@
+from imblearn.over_sampling import RandomOverSampler
+
 import utilz
 from Dataset import load_dataset
 
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import cross_val_predict, train_test_split
+from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from imblearn.under_sampling import RandomUnderSampler
+
 
 from preprocessing_utilz import *
 from utilz import *
@@ -25,9 +29,15 @@ y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0.5,
                                                     random_state=42, stratify=y_encoded)
 
+rus = RandomUnderSampler(random_state=42)
+X_train, y_train = rus.fit_resample(X_train, y_train)
+
+
+
+class_weights = {0: 1, 1: 2}
 model = LogisticRegression(
     penalty='elasticnet', solver='saga', max_iter=1500,
-    class_weight='balanced', l1_ratio = 0.8, C = 2
+    class_weight=class_weights, l1_ratio = 0.8, C = 2
 )
 
 print("original X shape: ", X_train.shape)
@@ -38,6 +48,7 @@ pipeline = Pipeline([
     ('PValueReductor', PValueReductor(0.005)),
     ('MinValueAdjustment', MinValueAdjustment("subtract")),
     ('scaler', StandardScaler()),
+    #('PCA', PCA(n_components=20)),
     ('model', model)
 ])
 
@@ -56,11 +67,11 @@ print("Confusion Matrix:\n", cm)
 print("\nClassification report:\n", classification_report(y_test, y_pred, target_names=le.classes_))
 
 
-logreg = pipeline.named_steps['model']   # twój LogisticRegression
+logreg = pipeline.named_steps['model']
 
-coefs = logreg.coef_[0]                  # dla binarnej klasyfikacji: (1, n_features)
+coefs = logreg.coef_[0]
 intercept = logreg.intercept_[0]
-preproc = pipeline[:-1]  # wszystko oprócz modelu
+preproc = pipeline[:-1]
 
 feature_names = preproc.get_feature_names_out()
 X_train_trans = preproc.transform(X_train)
@@ -72,9 +83,8 @@ coef_series = (
     pd.Series(coefs, index=feature_names)
     .sort_values(ascending=False)
 )
-print(coef_series.head(20))
 
-
+coef_series.to_csv("feature_weights.csv", header=["weight"])
 
 import shap
 
