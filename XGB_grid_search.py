@@ -1,11 +1,13 @@
-from Dataset import load_dataset
-from utilz import *
+from collections import Counter
+
+from utilz.Dataset import load_dataset
+from utilz.helpers import *
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import GridSearchCV, StratifiedKFold
 from xgboost import XGBClassifier
-from preprocessing_utilz import *
-
+from utilz.preprocessing_utilz import *
+from utilz.constans import DISEASE, HEALTHY
 
 
 meta_path = r"../data/samples_pancreatic.xlsx"
@@ -17,6 +19,8 @@ ds.y = ds.y.replace({DISEASE: HEALTHY})
 
 le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
+class_counts = Counter(y_encoded)
+scale_pos_weight = class_counts[0] / class_counts[1]
 
 preprocessing_pipeline = Pipeline([
     ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
@@ -29,7 +33,7 @@ preprocessing_pipeline = Pipeline([
 
 full_pipeline = Pipeline([
     ('prep', preprocessing_pipeline),
-    ('bst', XGBClassifier(objective='binary:logistic'))
+    ('bst', XGBClassifier(scale_pos_weight = scale_pos_weight))
 ])
 
 X = preprocessing_pipeline.fit_transform(ds.X, y_encoded)
@@ -37,14 +41,14 @@ X = preprocessing_pipeline.fit_transform(ds.X, y_encoded)
 cv = StratifiedKFold(n_splits=2, shuffle=True, random_state=42)
 
 param_grid = {
-    'bst__colsample_bytree': [0.7, 0.8],
-    'bst__reg_lambda': [2.0, 3.0],
+    'bst__colsample_bytree': [0.7, 0.8, 1],
+    'bst__reg_lambda': [1, 2.0, 3.0],
     'bst__gamma': [0, 1],
     'bst__min_child_weight': [1, 2],
-    'bst__n_estimators': [200, 220],
-    'bst__max_depth': [3, 4],
-    'bst__learning_rate': [0.04, 0.05, 0.06],
-    'bst__subsample': [0.8, 0.9]
+    'bst__n_estimators': [100, 200, 220],
+    'bst__max_depth': [3, 4, 6],
+    'bst__learning_rate': [0.2, 0.3, 0.4],
+    'bst__subsample': [0.8, 0.9, 1]
 }
 
 grid = GridSearchCV(

@@ -1,16 +1,16 @@
-from imblearn.over_sampling import RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
 from sklearn.metrics import ConfusionMatrixDisplay
-from sklearn.utils import class_weight
-
-from Dataset import load_dataset
-
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
-from utilz import *
-from collections import Counter
-import os, random, numpy as np, tensorflow as tf
+import os, random
+import tensorflow as tf
+
+from utilz.constans import DISEASE, HEALTHY
+from utilz.Dataset import load_dataset
+from utilz.preprocessing_utilz import *
+from utilz.helpers import *
+
 
 seed = 42
 os.environ["PYTHONHASHSEED"] = str(seed)
@@ -19,8 +19,8 @@ np.random.seed(seed)
 tf.keras.utils.set_random_seed(seed)
 
 
-meta_path = r"../data/samples_pancreatic.xlsx"
-data_path = r"../data/counts_pancreatic.csv"
+meta_path = r"../../../data/samples_pancreatic.xlsx"
+data_path = r"../../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
 y_containing_disease = ds.y
@@ -28,24 +28,37 @@ y_containing_disease = ds.y
 # combine healthy and disease into one class
 ds.y = ds.y.replace({DISEASE: HEALTHY})
 
+
 le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
-X = ds.X.to_numpy()
-print(Counter(y_encoded))
+"""
 rus = RandomUnderSampler(random_state=42)
-X, y_encoded = rus.fit_resample(X, y_encoded)
-print(Counter(y_encoded))
-X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.5,
-                                                    random_state=42, stratify=y_encoded)
+ds.X, y_encoded = rus.fit_resample(ds.X, y_encoded)
+"""
 
+X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0.5,
+                                                    random_state=42, stratify=y_encoded)
 
 x_test, x_valid, y_test, y_valid = train_test_split(X_test, y_test, test_size=0.5,
                                                     random_state=42, stratify=y_test)
 
+
+pipeline = Pipeline([
+    ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
+    ('scaler', StandardScaler()),
+])
+
+X_train = pipeline.fit_transform(X_train, y_train)
+x_test = pipeline.transform(x_test)
+x_valid = pipeline.transform(x_valid)
+
+
 X_train = X_train[..., np.newaxis]
 x_test = x_test[..., np.newaxis]
 x_valid = x_valid[..., np.newaxis]
+
+
 model = tf.keras.Sequential([
     tf.keras.Input(shape=(X_train.shape[1], 1)),
     tf.keras.layers.BatchNormalization(),
@@ -61,42 +74,37 @@ model = tf.keras.Sequential([
 ])
 
 
-def f1(y_true, y_pred):
-    y_true = tf.cast(y_true, tf.float32)
-    y_pred = tf.cast(tf.round(y_pred), tf.float32)
-    tp = tf.reduce_sum(y_true * y_pred)
-    fp = tf.reduce_sum((1 - y_true) * y_pred)
-    fn = tf.reduce_sum(y_true * (1 - y_pred))
-
-    precision = tp / (tp + fp + tf.keras.backend.epsilon())
-    recall = tp / (tp + fn + tf.keras.backend.epsilon())
-
-    f1 = 2 * (precision * recall) / (precision + recall + tf.keras.backend.epsilon())
-    return f1
-
 model.compile(
     optimizer='adam',
-    loss="binary_crossentropy",
-    metrics=[f1]
+    loss=tf.keras.losses.BinaryFocalCrossentropy(alpha = 0.1, from_logits = True,
+            gamma = 3, reduction = tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE),
+    metrics=[tf.keras.metrics.SensitivityAtSpecificity(specificity=0.8)]
 )
 
-batch_size = 4
-epochs = 15
-learning_rate = 0.0002
+callbacks = [
+    tf.keras.callbacks.ReduceLROnPlateau(
+        monitor="val_loss", factor=0.5, patience=8, min_lr=1e-6, verbose=1
+    ),
+    tf.keras.callbacks.EarlyStopping(
+        monitor="val_loss", patience=20, restore_best_weights=True
+    )
+]
 
-classes = np.unique(y_train)
-cls_wgts = class_weight.compute_class_weight(
-    class_weight='balanced',
-    classes=classes,
-    y=y_train
+batch_size = 16
+epochs = 100
+learning_rate = 1e-3
+
+history_simple = model.fit(
+    X_train, y_train,
+    epochs=epochs,
+    batch_size=batch_size,
+    validation_data=(x_valid, y_valid),
+    callbacks=callbacks
 )
-
-history_simple = model.fit(X_train, y_train, epochs=epochs,
-                           batch_size=batch_size, validation_data=(x_valid, y_valid))
 
 plt.figure()
-plt.plot(history_simple.history['f1'], label='F1 train')
-plt.plot(history_simple.history['val_f1'], label='F1 val')
+plt.plot(history_simple.history['sensitivity_at_specificity'], label='sensitivity_at_specificity train')
+plt.plot(history_simple.history['val_sensitivity_at_specificity'], label='sensitivity_at_specificity val')
 plt.legend()
 plt.show()
 

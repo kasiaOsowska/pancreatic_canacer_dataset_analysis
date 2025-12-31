@@ -1,10 +1,12 @@
 from scipy.stats import mannwhitneyu
 from sklearn.preprocessing import LabelEncoder
-from utilz import *
-from Dataset import load_dataset
+import pandas as pd
 
-meta_path = r"../../data/samples_pancreatic.xlsx"
-data_path = r"../../data/counts_pancreatic.csv"
+from utilz.Dataset import load_dataset
+from utilz.helpers import plot_pca
+
+meta_path = r"../../../data/samples_pancreatic.xlsx"
+data_path = r"../../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Sex")
 

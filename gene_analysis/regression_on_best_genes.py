@@ -1,6 +1,4 @@
 from sklearn.model_selection import train_test_split
-import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, f1_score, confusion_matrix
 from sklearn.preprocessing import LabelEncoder
@@ -13,7 +11,9 @@ meta_path = r"../../data/samples_pancreatic.xlsx"
 data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
-ds.X = ds.X[MYL9]
+selected_genes = [MYL9, BCAP31, ARL2, CFL1]
+ds.X = ds.X[selected_genes]
+print(ds.X)
 
 ds.y =  ds.y.replace({DISEASE: HEALTHY})
 le = LabelEncoder()
@@ -22,15 +22,14 @@ X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0
                                                     random_state=42, stratify=y_encoded)
 
 
-X_train = np.array(X_train.values).reshape(-1, 1)
-X_test = np.array(X_test.values).reshape(-1, 1)
+X_train = X_train.values
+X_test = X_test.values
 
 print("X train shape:", X_train.shape)
 print("y_train shape", y_train.shape)
 
 model = LogisticRegression(class_weight='balanced')
 model.fit(X_train, y_train)
-
 y_pred = model.predict(X_test)
 
 classification_report = classification_report(y_test, y_pred)
@@ -38,14 +37,3 @@ print(classification_report)
 print("f1 score" + str(f1_score(y_test, y_pred)))
 cm = confusion_matrix(y_test, y_pred, labels=[0, 1])
 print("Confusion matrix:\n", cm)
-
-plt.figure()
-plt.scatter(X_test, y_test, label="Test points", alpha=0.7)
-x_line = np.linspace(X_test.min(), X_test.max(), 100).reshape(-1, 1)
-y_proba = model.predict_proba(x_line)[:, 1]
-plt.plot(x_line, y_proba, label="Probability curve", color='red')
-plt.xlabel("MYL9 expression")
-plt.ylabel("Label 0 - healthy or disease 1 - cancer")
-plt.legend()
-plt.title("Logistic regression on binary label")
-plt.show()

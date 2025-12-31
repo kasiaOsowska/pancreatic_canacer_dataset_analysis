@@ -1,8 +1,11 @@
 from scipy.stats import mannwhitneyu
 from sklearn.metrics import roc_auc_score
 from sklearn.preprocessing import LabelEncoder
-from Dataset import load_dataset
-from utilz import *
+import pandas as pd
+
+from utilz.Dataset import load_dataset
+from utilz.helpers import plot_pca
+from utilz.constans import DISEASE, HEALTHY, CANCER
 
 meta_path = r"../../data/samples_pancreatic.xlsx"
 data_path = r"../../data/counts_pancreatic.csv"

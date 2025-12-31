@@ -1,23 +1,18 @@
-import utilz
-from Dataset import load_dataset
-
+from imblearn.under_sampling import RandomUnderSampler
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import cross_val_predict, train_test_split
+from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 
-from preprocessing_utilz import *
-from utilz import *
-import numpy as np
+from utilz.constans import DISEASE, HEALTHY
+from utilz.Dataset import load_dataset
+from utilz.preprocessing_utilz import *
+from utilz.helpers import *
 
-
-meta_path = r"../data/samples_pancreatic.xlsx"
-data_path = r"../data/counts_pancreatic.csv"
+meta_path = r"../../../data/samples_pancreatic.xlsx"
+data_path = r"../../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
-
-
-# FEMALE CLASSIFICATION -----------------------
 
 ds.y_female = ds.y_female.replace({DISEASE: HEALTHY})
 ds.y_male = ds.y_male.replace({DISEASE: HEALTHY})
@@ -26,10 +21,18 @@ y_female = ds.y_female
 X_male   = ds.X_male
 y_male   = ds.y_male
 
+
 le = LabelEncoder()
 y_female_encoded = pd.Series(le.fit_transform(y_female), index=y_female.index)
 y_male_encoded = pd.Series(le.transform(y_male), index=y_male.index)
 
+rus = RandomUnderSampler(random_state=42)
+X_female, y_female_encoded = rus.fit_resample(X_female, y_female_encoded)
+
+rus = RandomUnderSampler(random_state=42)
+X_male, y_male_encoded = rus.fit_resample(X_male, y_male_encoded)
+
+# FEMALE CLASSIFICATION -----------------------
 model_female = LogisticRegression(
     penalty='elasticnet', solver='saga', max_iter=1500,
     class_weight='balanced', l1_ratio = 0.8, C = 2

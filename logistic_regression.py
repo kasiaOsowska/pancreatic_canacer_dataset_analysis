@@ -1,17 +1,11 @@
-from imblearn.over_sampling import RandomOverSampler
-
-import utilz
-from Dataset import load_dataset
-
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_predict
 from sklearn.linear_model import LogisticRegression
-from imblearn.under_sampling import RandomUnderSampler
+import shap
 
-
-from preprocessing_utilz import *
-from utilz import *
+from utilz.Dataset import load_dataset
+from utilz.preprocessing_utilz import *
+from utilz.helpers import *
 
 
 meta_path = r"../data/samples_pancreatic.xlsx"
@@ -29,15 +23,9 @@ y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0.5,
                                                     random_state=42, stratify=y_encoded)
 
-rus = RandomUnderSampler(random_state=42)
-X_train, y_train = rus.fit_resample(X_train, y_train)
-
-
-
-class_weights = {0: 1, 1: 2}
 model = LogisticRegression(
     penalty='elasticnet', solver='saga', max_iter=1500,
-    class_weight=class_weights, l1_ratio = 0.8, C = 2
+    class_weight='balanced', l1_ratio = 0.8, C = 2
 )
 
 print("original X shape: ", X_train.shape)
@@ -46,22 +34,20 @@ pipeline = Pipeline([
     ('VarianceExpressionReductor', VarianceExpressionReductor(0.1)),
     ('MeanExpressionReductor', MeanExpressionReductor(4)),
     ('PValueReductor', PValueReductor(0.005)),
-    ('MinValueAdjustment', MinValueAdjustment("subtract")),
     ('scaler', StandardScaler()),
-    #('PCA', PCA(n_components=20)),
     ('model', model)
 ])
 
-#y_pred = cross_val_predict(pipeline, ds.X, y_encoded, cv=5, n_jobs=-1)
 pipeline.fit(X_train, y_train)
 y_pred = pipeline.predict(X_test)
+
 
 cm = confusion_matrix(y_test, y_pred, labels=range(len(le.classes_)))
 disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=le.classes_)
 disp.plot(cmap="Blues", colorbar=False)
 plt.title("Confusion Matrix")
 plt.show()
-utilz.show_report(y_pred, y_test, ds, le)
+show_report(y_pred, y_test, ds, le)
 
 print("Confusion Matrix:\n", cm)
 print("\nClassification report:\n", classification_report(y_test, y_pred, target_names=le.classes_))
@@ -85,9 +71,6 @@ coef_series = (
 )
 
 coef_series.to_csv("feature_weights.csv", header=["weight"])
-
-import shap
-
 
 explainer = shap.LinearExplainer(
     logreg,

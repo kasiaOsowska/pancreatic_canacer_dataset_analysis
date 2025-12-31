@@ -1,16 +1,15 @@
-import utilz
-from Dataset import load_dataset
-
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.preprocessing import LabelEncoder
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from preprocessing_utilz import *
-from utilz import *
+
+from utilz.preprocessing_utilz import *
+from utilz.helpers import *
+from utilz.Dataset import load_dataset
 
 
-meta_path = r"../data/samples_pancreatic.xlsx"
-data_path = r"../data/counts_pancreatic.csv"
+meta_path = r"../../../data/samples_pancreatic.xlsx"
+data_path = r"../../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Sex")
 ds.y = ds.y.dropna()
@@ -44,7 +43,7 @@ y_pred = pipeline.predict(X_test)
 print("y test encoded:")
 print(y_test_encoded)
 print("y_pred")
-utilz.show_report(y_pred, y_test_encoded, ds, le)
+show_report(y_pred, y_test_encoded, ds, le)
 
 print(confusion_matrix(y_test_encoded, y_pred, labels=[0, 1]))
 print(classification_report(y_test_encoded, y_pred, target_names=le.classes_))
