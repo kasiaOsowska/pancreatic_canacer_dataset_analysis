@@ -39,10 +39,8 @@ model_female = LogisticRegression(
 )
 pipeline_female = Pipeline([
     ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
-    ('VarianceExpressionReductor', VarianceExpressionReductor(0.1)),
+    ('AnovaReductor', AnovaReductor()),
     ('MeanExpressionReductor', MeanExpressionReductor(4)),
-    ('PValueReductor', PValueReductor(0.005)),
-    ('MinValueAdjustment', MinValueAdjustment("subtract")),
     ('scaler', StandardScaler()),
     ('model_female', model_female)
 ])
@@ -69,10 +67,8 @@ model_male = LogisticRegression(
 
 pipeline_male = Pipeline([
     ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
-    ('VarianceExpressionReductor', VarianceExpressionReductor(0.1)),
+    ('AnovaReductor', AnovaReductor()),
     ('MeanExpressionReductor', MeanExpressionReductor(4)),
-    ('PValueReductor', PValueReductor(0.005)),
-    ('MinValueAdjustment', MinValueAdjustment("subtract")),
     ('scaler', StandardScaler()),
     ('model_female', model_female)
 ])

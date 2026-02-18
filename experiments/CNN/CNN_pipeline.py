@@ -52,6 +52,7 @@ X_valid = pipeline.transform(X_valid)
 X_train = X_train[..., np.newaxis]
 X_test = X_test[..., np.newaxis]
 X_valid = X_valid[..., np.newaxis]
+
 model = tf.keras.Sequential([
     tf.keras.Input(shape=(X_train.shape[1], 1)),
     tf.keras.layers.BatchNormalization(),
@@ -83,7 +84,7 @@ model.compile(
 )
 
 batch_size = 4
-epochs = 100
+epochs = 50
 learning_rate = 0.0002
 
 
@@ -103,8 +104,8 @@ history_simple = model.fit(X_train,
                            )
 
 plt.figure()
-plt.plot(history_simple.history['auc'], label='train AUC')
-plt.plot(history_simple.history['val_auc'], label='val AUC')
+plt.plot(history_simple.history['precision'], label='train precision')
+plt.plot(history_simple.history['val_precision'], label='val precision')
 plt.legend()
 plt.show()
 

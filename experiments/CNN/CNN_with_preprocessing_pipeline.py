@@ -32,10 +32,10 @@ ds.y = ds.y.replace({DISEASE: HEALTHY})
 le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
-"""
+
 rus = RandomUnderSampler(random_state=42)
 ds.X, y_encoded = rus.fit_resample(ds.X, y_encoded)
-"""
+
 
 X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0.5,
                                                     random_state=42, stratify=y_encoded)
@@ -45,7 +45,7 @@ x_test, x_valid, y_test, y_valid = train_test_split(X_test, y_test, test_size=0.
 
 
 pipeline = Pipeline([
-    ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
+    #('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
     ('scaler', StandardScaler()),
 ])
 
@@ -76,8 +76,7 @@ model = tf.keras.Sequential([
 
 model.compile(
     optimizer='adam',
-    loss=tf.keras.losses.BinaryFocalCrossentropy(alpha = 0.1, from_logits = True,
-            gamma = 3, reduction = tf.keras.losses.Reduction.SUM_OVER_BATCH_SIZE),
+    loss=tf.keras.losses.BinaryCrossentropy(),
     metrics=[tf.keras.metrics.SensitivityAtSpecificity(specificity=0.8)]
 )
 
@@ -101,6 +100,12 @@ history_simple = model.fit(
     validation_data=(x_valid, y_valid),
     callbacks=callbacks
 )
+
+plt.figure()
+plt.plot(history_simple.history['loss'], label='loss train')
+plt.plot(history_simple.history['val_loss'], label='val_loss val')
+plt.legend()
+plt.show()
 
 plt.figure()
 plt.plot(history_simple.history['sensitivity_at_specificity'], label='sensitivity_at_specificity train')

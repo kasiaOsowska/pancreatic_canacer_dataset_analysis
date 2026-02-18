@@ -5,44 +5,61 @@ from utilz.constans import DISEASE, HEALTHY, CANCER
 
 
 meta_path = r"../../data/samples_pancreatic.xlsx"
-data_path = r"../../data/counts_pancreatic_filtered.csv"
+data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
 X = ds.X.values
 
+import numpy as np
+import matplotlib.pyplot as plt
 
-def display_genes_as_image(index):
-    example = X[index]
-    n_genes = len(example)
-    print(f"Number of genes: {n_genes}")
+X = ds.X.values
 
-    def find_best_shape(n):
-        sqrt_n = int(np.sqrt(n))
-        for i in range(sqrt_n, 0, -1):
-            if n % i == 0:
-                return i, n // i
-        return 1, n
+def find_best_shape(n):
+    sqrt_n = int(np.sqrt(n))
+    for i in range(sqrt_n, 0, -1):
+        if n % i == 0:
+            return i, n // i
+    return 1, n
 
+def show_group_means_one_figure(labels, names, sort=True):
+    means = []
+    counts = []
+    for lab in labels:
+        mask = (ds.y == lab)
+        counts.append(int(mask.sum()))
+        means.append(X[mask].mean(axis=0))
+
+    n_genes = means[0].size
     rows, cols = find_best_shape(n_genes)
-    print(f"Image shape: {rows} × {cols} = {rows * cols}")
 
-    example_image = example.reshape(rows, cols)
+    if sort:
+        global_mean = X.mean(axis=0)
+        order = np.argsort(global_mean)[::-1]
+        means = [m[order] for m in means]
 
-    plt.figure(figsize=(10, 7))
-    plt.imshow(example_image, cmap='hot', aspect='auto', interpolation='nearest')
-    plt.colorbar(label='Expression Level', shrink=0.8)
-    plt.title(f'Gene Expression Pattern {n_genes} genes {rows}×{cols} image \n Label: {ds.y[index]}')
-    plt.xlabel(f'Genes (columns: {cols})')
-    plt.ylabel(f'Genes (rows: {rows})')
-    plt.tight_layout()
+    vmin = min(m.min() for m in means)
+    vmax = max(m.max() for m in means)
+
+    fig, axes = plt.subplots(1, len(labels), figsize=(5 * len(labels), 5), constrained_layout=True)
+
+    if len(labels) == 1:
+        axes = [axes]
+
+    images = []
+    for ax, m, name, cnt in zip(axes, means, names, counts):
+        img = m.reshape(rows, cols)
+        im = ax.imshow(img, cmap="hot", aspect="auto", interpolation="nearest", vmin=vmin, vmax=vmax)
+        ax.set_title(f"{name}\n(n={cnt})")
+        ax.set_xlabel("Genes")
+        ax.set_ylabel("Genes")
+        images.append(im)
+
+    fig.colorbar(images[0], ax=axes, shrink=0.85, label="Mean Expression Level")
     plt.show()
 
-
-disease_index = np.where(ds.y == DISEASE)[0][0]
-display_genes_as_image(disease_index)
-
-healthy_index = np.where(ds.y == HEALTHY)[0][0]
-display_genes_as_image(healthy_index)
-
-cancer_index = np.where(ds.y == CANCER)[0][0]
-display_genes_as_image(cancer_index)
+show_group_means_one_figure(
+    labels=[HEALTHY, DISEASE, CANCER],
+    names=["HEALTHY", "DISEASE", "CANCER"],
+    sort=True
+)

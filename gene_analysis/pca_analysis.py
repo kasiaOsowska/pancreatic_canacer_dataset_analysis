@@ -6,7 +6,7 @@ from utilz.helpers import plot_pca
 from utilz.constans import DISEASE, HEALTHY
 
 meta_path = r"../../data/samples_pancreatic.xlsx"
-data_path = r"../../data/counts_pancreatic_filtered.csv"
+data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
 ds.y = ds.y.replace({DISEASE: HEALTHY})

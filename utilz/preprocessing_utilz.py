@@ -1,52 +1,28 @@
 from scipy.stats import mannwhitneyu
 from sklearn.base import BaseEstimator, TransformerMixin
 import numpy as np
+from sklearn.feature_selection import f_classif
+from sklearn.linear_model import Lasso
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler
 
 
-class PValueReductor(BaseEstimator, TransformerMixin):
-    def __init__(self, p_threshold=0.005):
-        self.selected_genes_ = []
-        self.p_threshold = p_threshold
-
-    def fit(self, X, y):
-
-        for gene in X.columns:
-            X_gene = X[gene]
-            X_healthy = X_gene[y == 0]
-            X_cancer = X_gene[y == 1]
-
-            u_stat, p_val = mannwhitneyu(X_healthy, X_cancer, alternative="two-sided")
-
-            if p_val < self.p_threshold:
-                self.selected_genes_.append(gene)
-
-        return self
-
-    def transform(self, X):
-        X = X[self.selected_genes_]
-        print("data shape after PValueReductor: ", X.shape)
-        return X
-
-    def get_feature_names_out(self, input_features=None):
-        return self.selected_genes_
-
-class VarianceExpressionReductor(BaseEstimator, TransformerMixin):
-    def __init__(self, v_threshold=0.1):
+class AnovaReductor(BaseEstimator, TransformerMixin):
+    def __init__(self):
         self.selected_genes_ = None
-        self.v_threshold = v_threshold
 
     def fit(self, X, y=None):
-        variance_per_gene = X.var(axis=0)
-        self.selected_genes_ = variance_per_gene[variance_per_gene > self.v_threshold].index
+        F, p = f_classif(X, y)
+        self.selected_genes_ = X.columns[p < 0.05]
         return self
 
     def transform(self, X):
         X = X[self.selected_genes_]
-        print("data shape after VarianceExpressionReductor: ", X.shape)
+        print("data shape after AnovaReductor: ", X.shape)
         return X
 
     def get_feature_names_out(self, input_features=None):
-        return self.selected_genes_
+        return np.asarray(self.selected_genes_, dtype=object)
 
 class MeanExpressionReductor(BaseEstimator, TransformerMixin):
     def __init__(self, mean_threshold=3):
@@ -64,32 +40,29 @@ class MeanExpressionReductor(BaseEstimator, TransformerMixin):
         return X
 
     def get_feature_names_out(self, input_features=None):
-        return self.selected_genes_
+        return np.asarray(self.selected_genes_, dtype=object)
 
-class MinValueAdjustment(BaseEstimator, TransformerMixin):
-    def __init__(self, method = "subtract"):
-        self.method = method
-        self._feature_names_ = None
-        self.min_value = 0
+class AgeBiasReductor(BaseEstimator, TransformerMixin):
+    def __init__(self):
+        self.selected_genes_ = None
 
     def fit(self, X, y=None):
-        self.min_value = X.min().min()
-        print("min value: ", self.min_value)
-        self._feature_names_ = X.columns
+
+        model = Lasso(alpha = 0.11, max_iter=10000)
+        model.fit(X, y)
+        coef = model.coef_.ravel()
+        mask = np.abs(coef) == 0
+        idx = np.where(mask)[0]
+        self.selected_genes_ = idx
         return self
 
     def transform(self, X):
-        match self.method:
-            case "subtract":
-                X[X == self.min_value] = X - self.min_value
-            case "subtract_all":
-                X = X - self.min_value
-            case _:
-                print(f"Unknown method: {self.method}, skipping")
+        X = X[:, self.selected_genes_]
+        print("data shape after AgeBiasReductor: ", X.shape)
         return X
 
     def get_feature_names_out(self, input_features=None):
-        return np.array(self._feature_names_)
+        return np.asarray(self.selected_genes_, dtype=object)
 
 
 class NoneInformativeGeneReductor(BaseEstimator, TransformerMixin):
@@ -97,8 +70,8 @@ class NoneInformativeGeneReductor(BaseEstimator, TransformerMixin):
         self.selected_genes_ = None
 
     def fit(self, X, y=None):
-        diff_sum = X.diff().abs().sum(axis=0)
-        self.selected_genes_ = diff_sum[diff_sum != 0].index
+        num_unique = X.nunique(dropna=True)
+        self.selected_genes_ = num_unique[num_unique > 1].index
         return self
 
     def transform(self, X):
@@ -107,4 +80,4 @@ class NoneInformativeGeneReductor(BaseEstimator, TransformerMixin):
         return X
 
     def get_feature_names_out(self, input_features=None):
-        return self.selected_genes_
+        return np.asarray(self.selected_genes_, dtype=object)

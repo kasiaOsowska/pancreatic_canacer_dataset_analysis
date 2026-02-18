@@ -11,8 +11,14 @@ from utilz.Dataset import load_dataset
 meta_path = r"../../../data/samples_pancreatic.xlsx"
 data_path = r"../../../data/counts_pancreatic.csv"
 
-ds = load_dataset(data_path, meta_path, label_col="Sex")
+ds = load_dataset(data_path, meta_path, label_col="Group")
 ds.y = ds.y.dropna()
+
+y = ds
+y = y.dropna().astype(int)
+# Prediction of age is only meaningful for healthy samples
+healthy_idx = ds.y[ds.y == HEALTHY].index
+idx = y.index.intersection(healthy_idx)
 X_train, X_test, y_train, y_test = train_test_split(ds.X, ds.y, test_size=0.5,
                                                     random_state=42, stratify=ds.y)
 
@@ -33,8 +39,7 @@ model = LogisticRegression(
 
 scaler = StandardScaler()
 pipeline = Pipeline([
-    ('PValueReductor', PValueReductor(0.005)),
-    ('MinValueAdjustment', MinValueAdjustment("subtract")),
+    ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
     ('scaler', StandardScaler()), ('model', model)
 ])
 

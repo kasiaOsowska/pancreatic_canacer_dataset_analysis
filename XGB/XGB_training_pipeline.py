@@ -1,9 +1,7 @@
 from collections import Counter
 
-from imblearn.under_sampling import RandomUnderSampler
 from xgboost import XGBClassifier
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
-from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 
 from utilz.Dataset import load_dataset
@@ -12,8 +10,8 @@ from utilz.preprocessing_utilz import *
 from utilz.constans import DISEASE, HEALTHY
 
 
-meta_path = r"../data/samples_pancreatic.xlsx"
-data_path = r"../data/counts_pancreatic.csv"
+meta_path = r"../../data/samples_pancreatic.xlsx"
+data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
 y_containing_disease = ds.y
@@ -36,10 +34,8 @@ bst = XGBClassifier(scale_pos_weight=scale_pos_weight, n_estimators=220, colsamp
 print("original X shape: ", X_train.shape)
 pipeline = Pipeline([
     ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
-    ('VarianceExpressionReductor', VarianceExpressionReductor(0.1)),
-    ('MeanExpressionReductor', MeanExpressionReductor(4)),
-    ('PValueReductor', PValueReductor(0.0005)),
-    ('MinValueAdjustment', MinValueAdjustment("subtract")),
+    ('AnovaReductor', AnovaReductor()),
+    ('MeanExpressionReductor', MeanExpressionReductor(3)),
     ('scaler', StandardScaler()),
     ('model', bst)
 ])

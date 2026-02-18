@@ -119,14 +119,9 @@ def plot_scatter_boxplot(X, y, gene_name):
     plt.show()
 
 
-def plot_roc_curve(X, y, gene_name):
-    le = LabelEncoder()
-    y_combined = y.replace({DISEASE: HEALTHY})
-    y_encoded = pd.Series(le.fit_transform(y_combined), index=y_combined)
-
-    fpr, tpr, thresholds = roc_curve(y_encoded, X)
-
-    auc = roc_auc_score(y_encoded, X)
+def plot_roc_curve(X, y, title):
+    fpr, tpr, thresholds = roc_curve(y, X)
+    auc = roc_auc_score(y, X)
     print(f"ROC AUC = {auc:.3f}")
 
     plt.figure(figsize=(6, 6))
@@ -134,9 +129,33 @@ def plot_roc_curve(X, y, gene_name):
     plt.plot([0, 1], [0, 1], linestyle="--", color="gray", label="Random")
     plt.xlabel("False Positive Rate (1 - specificity)")
     plt.ylabel("True Positive Rate (sensitivity)")
-    plt.title("ROC curve for " + gene_name + "DISEASE merged with HEALTHY")
+    plt.title("ROC curve for " + title)
     plt.legend()
     plt.grid(alpha=0.1)
-    plt.savefig(f"graphics/{gene_name}_fpr_tpr.png")
     plt.show()
 
+
+def print_specificity_at_best_sensitivity(tpr, fpr, thresholds):
+    indices_perfect_sensitivity = np.where(tpr == 1.0)[0]
+
+    if len(indices_perfect_sensitivity) > 0:
+        best_idx = indices_perfect_sensitivity[np.argmin(fpr[indices_perfect_sensitivity])]
+
+        best_fpr = fpr[best_idx]
+        best_tpr = tpr[best_idx]
+        best_threshold = thresholds[best_idx]
+        best_specificity = 1 - best_fpr
+
+        print(f"\n{'=' * 60}")
+        print(f"Wyniki dla Sensitivity = 100%:")
+        print(f"{'=' * 60}")
+        print(f"Sensitivity (TPR):        {best_tpr * 100:.2f}%")
+        print(f"Specificity (TNR):        {best_specificity * 100:.2f}%")
+        print(f"False Positive Rate:      {best_fpr * 100:.2f}%")
+        print(f"threshold:      {best_threshold:.4f}")
+        print(f"{'=' * 60}")
+    else:
+        print("Nie można osiągnąć 100% sensitivity z tym modelem.")
+        closest_idx = np.argmax(tpr)
+        print(f"Maksymalna osiągnięta sensitivity: {tpr[closest_idx] * 100:.2f}%")
+        print(f"Odpowiadająca specificity: {(1 - fpr[closest_idx]) * 100:.2f}%")

@@ -11,11 +11,11 @@ class Dataset:
         self.meta = meta
         self.y = y
         self.age = self.meta['Age']
+        self.sex =  self.meta['Sex']
 
-        sex = self.meta['Sex']
         # some of the samples have sex set to n.a.
-        mask_f = sex == 'F'
-        mask_m = sex == 'M'
+        mask_f = self.sex == 'F'
+        mask_m = self.sex == 'M'
         X_female = self.X.loc[mask_f]
         y_female = self.y.loc[mask_f]
         X_male = self.X.loc[mask_m]
