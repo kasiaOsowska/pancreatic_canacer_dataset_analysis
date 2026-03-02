@@ -9,7 +9,7 @@ from utilz.Dataset import load_dataset
 
 
 meta_path = r"../../../data/samples_pancreatic.xlsx"
-data_path = r"../../../data/counts_pancreatic.csv"
+data_path = r"../../../data/counts_pancreatic_filtered_sex.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
 
@@ -33,16 +33,25 @@ le = LabelEncoder()
 y_train_encoded = pd.Series(le.fit_transform(y_train), index=y_train.index)
 y_test_encoded = pd.Series(le.transform(y_test), index=y_test.index)
 
+"""
 model = LogisticRegression(
     penalty='l1', solver='liblinear', max_iter=1500,
     class_weight='balanced', C=0.2, fit_intercept=True
 )
+"""
+
+model = LogisticRegression(
+    solver='saga', max_iter=1500,
+    class_weight='balanced', l1_ratio = 0.1, C = 2, fit_intercept=True
+)
+
 
 scaler = StandardScaler()
 pipeline = Pipeline([
-    ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
-    ('MeanExpressionReductor', MeanExpressionReductor(4)),
-    ('scaler', StandardScaler()), ('model', model)
+    #('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
+    #('MeanExpressionReductor', MeanExpressionReductor(4)),
+    ('scaler', StandardScaler()),
+    ('model', model)
 ])
 
 pipeline.fit(X_train, y_train_encoded)

@@ -11,11 +11,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, f1_score, confusion_matrix
 
 
-
 def fit_iterative_logistic_regression(X_train, y_train, X_valid, y_valid, num_genes_to_drop):
 
     logreg = LogisticRegression(
-        penalty='elasticnet', solver='saga', max_iter=15000,
+        solver='saga', max_iter=15000,
         class_weight='balanced', l1_ratio=0.1, C=2, fit_intercept=True
     ).fit(X_train, y_train)
 
@@ -58,8 +57,9 @@ preprocessing_pipeline = Pipeline([
     ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
     ('AnovaReductor', AnovaReductor()),
     ('MeanExpressionReductor', MeanExpressionReductor(3)),
+    ('AgeBiasReductor', AgeBiasReductor(age=ds.age)),
+    ('SexBiasReductor', SexBiasReductor(sex=ds.sex)),
     ('scaler', StandardScaler()),
-    #('AgeBiasReductor', AgeBiasReductor())
 ])
 preprocessing_pipeline.set_output(transform="pandas")
 

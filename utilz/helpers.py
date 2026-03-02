@@ -34,7 +34,7 @@ def show_report(y_pred, y_test_encoded, dataset, le):
                 "TN": TN_idx,
             }
 
-            for key in ["TP", "FP", "FN", "TN"]:
+            for key in ["FN"]: #["TP", "FP", "FN", "TN"]:
                 print(f"\n--- {key} samples metadata ---")
                 for idx in results[cls][key]:
                     sample_meta = dataset.meta.loc[idx]

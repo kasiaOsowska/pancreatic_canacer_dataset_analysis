@@ -24,7 +24,7 @@ X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0
                                                     random_state=42, stratify=y_encoded)
 #Najlepsze parametry: {'model__l1_ratio': 0.1, 'prep__MeanExpressionReductor__mean_threshold': 3, 'prep__PValueReductor__p_threshold': 0.1, 'prep__VarianceExpressionReductor__v_threshold': 0.2}
 model = LogisticRegression(
-    penalty='elasticnet', solver='saga', max_iter=1500,
+    solver='saga', max_iter=1500,
     class_weight='balanced', l1_ratio = 0.1, C = 2, fit_intercept=True
 )
 
@@ -33,8 +33,9 @@ pipeline = Pipeline([
     ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
     ('AnovaReductor', AnovaReductor()),
     ('MeanExpressionReductor', MeanExpressionReductor(3)),
+    ('AgeBiasReductor', AgeBiasReductor(age=ds.age)),
+    ('SexBiasReductor', SexBiasReductor(sex=ds.sex)),
     ('scaler', StandardScaler()),
-    ('AgeBiasReductor', AgeBiasReductor()),
     ('model', model)
 ])
 
@@ -60,7 +61,6 @@ fpr, tpr, thresholds = roc_curve(y_test, y_proba)
 auc_score = roc_auc_score(y_test, y_proba)
 
 logreg = pipeline.named_steps['model']
-
 coefs = logreg.coef_[0]
 intercept = logreg.intercept_[0]
 preproc = pipeline[:-1]
@@ -75,27 +75,15 @@ coef_series = (
     pd.Series(coefs, index=feature_names)
     .sort_values(ascending=False)
 )
-
 coef_series.to_csv("feature_weights.csv", header=["weight"])
 
 explainer = shap.LinearExplainer(
     logreg,
     X_train_trans_df
 )
-
 shap_values = explainer.shap_values(X_test_trans_df)
-
 shap_values_series = pd.DataFrame(
     shap_values,
     columns=feature_names
 ).mean().sort_values(ascending=False)
-
-print(shap_values_series.head(20))
-
-shap_values_series = pd.DataFrame(
-    shap_values,
-    columns=feature_names
-).mean().sort_values(ascending=False)
-
-print(shap_values_series.head(20))
 shap_values_series.to_csv("shap_values.csv", header=["weight"])

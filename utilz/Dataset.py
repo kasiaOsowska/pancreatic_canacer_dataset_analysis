@@ -13,22 +13,6 @@ class Dataset:
         self.age = self.meta['Age']
         self.sex =  self.meta['Sex']
 
-        # some of the samples have sex set to n.a.
-        mask_f = self.sex == 'F'
-        mask_m = self.sex == 'M'
-        X_female = self.X.loc[mask_f]
-        y_female = self.y.loc[mask_f]
-        X_male = self.X.loc[mask_m]
-        y_male = self.y.loc[mask_m]
-
-        self.X_female = X_female
-        self.y_female = y_female
-        self.X_male = X_male
-        self.y_male = y_male
-
-
-
-
 def load_dataset(path_csv, path_xlsx, label_col=None):
     df_features =  pd.read_csv(path_csv, sep=";", decimal=",", index_col=0)
     df_features = df_features.T
@@ -41,6 +25,6 @@ def load_dataset(path_csv, path_xlsx, label_col=None):
     df_features = df_features.loc[intersect].sort_index()
     meta = df_metadata.loc[intersect].sort_index()
 
-    y = meta[label_col] if label_col is not None else "Group"
+    y = meta[label_col] if label_col is not None else meta["Group"]
 
     return Dataset(X=df_features, meta=meta, y=y)

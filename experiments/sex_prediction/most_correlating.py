@@ -51,7 +51,6 @@ X_new = ds.X[sorted_genes].copy()
 print(ds.X.shape)
 print(X_new.shape)
 print(X_new.head())
-#X_new.T.to_csv(r"../../data/counts_pancreatic_filtered_sex.csv", sep=";", decimal=",")
+X_new.T.to_csv(r"../../../data/counts_pancreatic_filtered_sex.csv", sep=";", decimal=",")
 num_pca_components = 5
 plot_pca(X_new, y_encoded, num_pca_components, le)
-

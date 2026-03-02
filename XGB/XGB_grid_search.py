@@ -24,10 +24,9 @@ scale_pos_weight = class_counts[0] / class_counts[1]
 
 preprocessing_pipeline = Pipeline([
     ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
-    ('VarianceExpressionReductor', AnovaReductor(0.2)),
+    #('VarianceExpressionReductor', AnovaReductor(0.2)),
     ('MeanExpressionReductor', MeanExpressionReductor(3)),
-    ('PValueReductor', PValueReductor(0.1)),
-    ('MinValueAdjustment', MinValueAdjustment("subtract_all")),
+
     ('scaler', StandardScaler()),
 ])
 

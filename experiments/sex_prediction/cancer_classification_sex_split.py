@@ -14,12 +14,12 @@ data_path = r"../../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
 
-ds.y_female = ds.y_female.replace({DISEASE: HEALTHY})
-ds.y_male = ds.y_male.replace({DISEASE: HEALTHY})
-X_female = ds.X_female
-y_female = ds.y_female
-X_male   = ds.X_male
-y_male   = ds.y_male
+ds.y = ds.y.replace({DISEASE: HEALTHY})
+
+X_female = ds.X.loc[ds.sex == 'F']
+y_female = ds.y.loc[ds.sex == 'F']
+X_male   = ds.X.loc[ds.sex == 'M']
+y_male   = ds.y.loc[ds.sex == 'M']
 
 
 le = LabelEncoder()

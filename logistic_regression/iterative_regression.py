@@ -24,7 +24,7 @@ X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0
                                                     random_state=42, stratify=y_encoded)
 #Najlepsze parametry: {'model__l1_ratio': 0.1, 'prep__MeanExpressionReductor__mean_threshold': 3, 'prep__PValueReductor__p_threshold': 0.1, 'prep__VarianceExpressionReductor__v_threshold': 0.2}
 model = LogisticRegression(
-    penalty='elasticnet', solver='saga', max_iter=15000,
+    solver='saga', max_iter=15000,
     class_weight='balanced', l1_ratio = 0.1, C = 2, fit_intercept=True
 )
 
@@ -33,8 +33,9 @@ pipeline = Pipeline([
     ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
     ('AnovaReductor', AnovaReductor()),
     ('MeanExpressionReductor', MeanExpressionReductor(3)),
+    ('AgeBiasReductor', AgeBiasReductor(age=ds.age)),
+    ('SexBiasReductor', SexBiasReductor(sex=ds.sex)),
     ('scaler', StandardScaler()),
-    ('AgeBiasReductor', AgeBiasReductor()),
     ("rfe", RFE(estimator=model, n_features_to_select=1500, step=0.2, verbose = 1)),
 ])
 
