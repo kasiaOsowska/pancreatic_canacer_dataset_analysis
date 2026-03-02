@@ -58,7 +58,8 @@ preprocessing_pipeline = Pipeline([
     ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
     ('AnovaReductor', AnovaReductor()),
     ('MeanExpressionReductor', MeanExpressionReductor(3)),
-    ('scaler', StandardScaler())
+    ('scaler', StandardScaler()),
+    #('AgeBiasReductor', AgeBiasReductor())
 ])
 preprocessing_pipeline.set_output(transform="pandas")
 
@@ -67,8 +68,8 @@ X_valid = preprocessing_pipeline.transform(X_valid)
 
 iteration = 0
 f1 = 0
-num_genes_to_drop = 500
-while f1<0.9 and X_train.shape[1] > num_genes_to_drop:
+num_genes_to_drop = 200
+while iteration<19 and X_train.shape[1] > num_genes_to_drop:
     print(f"Iteration {iteration}")
     X_train, X_valid, f1 = fit_iterative_logistic_regression(X_train, y_train,
                                                             X_valid, y_valid, num_genes_to_drop)
@@ -91,3 +92,4 @@ cm = confusion_matrix(y_test, y_pred, labels=range(len(le.classes_)))
 show_report(y_pred, y_test, ds, le)
 print("Macierz pomyłek:\n", cm)
 print("\nRaport klasyfikacji:\n", classification_report(y_test, y_pred, target_names=le.classes_))
+print("f1 score: ", f1_score(y_test, y_pred, average="weighted"))

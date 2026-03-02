@@ -1,8 +1,6 @@
-from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
-from sklearn.model_selection import train_test_split, cross_val_predict
+from sklearn.metrics import classification_report, confusion_matrix, f1_score
+from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-import shap
-from xgboost import XGBClassifier
 from sklearn.feature_selection import RFE
 
 from utilz.Dataset import load_dataset
@@ -36,43 +34,25 @@ pipeline = Pipeline([
     ('AnovaReductor', AnovaReductor()),
     ('MeanExpressionReductor', MeanExpressionReductor(3)),
     ('scaler', StandardScaler()),
-    ("rfe", RFE(estimator=model, n_features_to_select=100, step=0.4)),
+    ('AgeBiasReductor', AgeBiasReductor()),
+    ("rfe", RFE(estimator=model, n_features_to_select=1500, step=0.2, verbose = 1)),
 ])
 
 pipeline.fit(X_train, y_train)
 y_pred = pipeline.predict(X_test)
 
-show_report(y_pred, y_test, ds, le)
-
 cm = confusion_matrix(y_test, y_pred, labels=range(len(le.classes_)))
-print("Confusion Matrix:\n", cm)
-print("\nClassification report:\n", classification_report(y_test, y_pred, target_names=le.classes_))
-
 y_proba = pipeline.predict_proba(X_test)[:, 1]
-
-plot_roc_curve(y_proba, y_test, "logistic regression")
-
 fpr, tpr, thresholds = roc_curve(y_test, y_proba)
 auc_score = roc_auc_score(y_test, y_proba)
 
-print_specificity_at_best_sensitivity(tpr, fpr, thresholds)
+show_report(y_pred, y_test, ds, le)
+print("Confusion Matrix:\n", cm)
+print("\nClassification report:\n", classification_report(y_test, y_pred, target_names=le.classes_))
+plot_roc_curve(y_proba, y_test, "logistic regression")
 
-logreg = pipeline.named_steps['rfe'].estimator
+print("f1 score: ", f1_score(y_test, y_pred, average="weighted"))
 
-coefs = logreg.coef_[0]
-intercept = logreg.intercept_[0]
-preproc = pipeline[:-1]
 
-feature_names = preproc.get_feature_names_out()
-X_train_trans = preproc.transform(X_train)
-X_test_trans  = preproc.transform(X_test)
-X_train_trans_df = pd.DataFrame(X_train_trans, columns=feature_names)
-X_test_trans_df  = pd.DataFrame(X_test_trans,  columns=feature_names)
 
-coef_series = (
-    pd.Series(coefs, index=feature_names)
-    .sort_values(ascending=False)
-)
-
-coef_series.to_csv("feature_weights_iterative.csv", header=["weight"])
 

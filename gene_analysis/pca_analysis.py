@@ -15,6 +15,5 @@ meta = ds.meta
 le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
-X = ds.X.iloc[:, :10]
 num_pca_components = 5
-plot_pca(X, y_encoded, num_pca_components, le)
+plot_pca(ds.X, y_encoded, num_pca_components, le)

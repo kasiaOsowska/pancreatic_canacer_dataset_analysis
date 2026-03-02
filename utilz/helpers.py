@@ -63,7 +63,7 @@ def plot_pca(X, y_encoded, n_compontns, le):
                 mask = (y_test_int == k)
                 plt.scatter(
                     X_train_pca[mask, i], X_train_pca[mask, j],
-                    label=str(cls), alpha=0.75, s=45
+                    label=str(cls), alpha=0.3, s=45
                 )
 
             plt.xlabel(f"PC{i} ({evr[i] * 100:.1f}% wariancji)")
@@ -133,29 +133,3 @@ def plot_roc_curve(X, y, title):
     plt.legend()
     plt.grid(alpha=0.1)
     plt.show()
-
-
-def print_specificity_at_best_sensitivity(tpr, fpr, thresholds):
-    indices_perfect_sensitivity = np.where(tpr == 1.0)[0]
-
-    if len(indices_perfect_sensitivity) > 0:
-        best_idx = indices_perfect_sensitivity[np.argmin(fpr[indices_perfect_sensitivity])]
-
-        best_fpr = fpr[best_idx]
-        best_tpr = tpr[best_idx]
-        best_threshold = thresholds[best_idx]
-        best_specificity = 1 - best_fpr
-
-        print(f"\n{'=' * 60}")
-        print(f"Wyniki dla Sensitivity = 100%:")
-        print(f"{'=' * 60}")
-        print(f"Sensitivity (TPR):        {best_tpr * 100:.2f}%")
-        print(f"Specificity (TNR):        {best_specificity * 100:.2f}%")
-        print(f"False Positive Rate:      {best_fpr * 100:.2f}%")
-        print(f"threshold:      {best_threshold:.4f}")
-        print(f"{'=' * 60}")
-    else:
-        print("Nie można osiągnąć 100% sensitivity z tym modelem.")
-        closest_idx = np.argmax(tpr)
-        print(f"Maksymalna osiągnięta sensitivity: {tpr[closest_idx] * 100:.2f}%")
-        print(f"Odpowiadająca specificity: {(1 - fpr[closest_idx]) * 100:.2f}%")

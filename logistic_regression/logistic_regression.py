@@ -1,8 +1,7 @@
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
-from sklearn.model_selection import train_test_split, cross_val_predict
+from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 import shap
-from xgboost import XGBClassifier
 
 from utilz.Dataset import load_dataset
 from utilz.preprocessing_utilz import *
@@ -59,9 +58,6 @@ plot_roc_curve(y_proba, y_test, "logistic regression")
 
 fpr, tpr, thresholds = roc_curve(y_test, y_proba)
 auc_score = roc_auc_score(y_test, y_proba)
-
-print_specificity_at_best_sensitivity(tpr, fpr, thresholds)
-
 
 logreg = pipeline.named_steps['model']
 

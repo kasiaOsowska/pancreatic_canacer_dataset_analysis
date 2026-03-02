@@ -12,15 +12,16 @@ meta_path = r"../../../data/samples_pancreatic.xlsx"
 data_path = r"../../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
-ds.y = ds.y.dropna()
 
-y = ds
-y = y.dropna().astype(int)
 # Prediction of age is only meaningful for healthy samples
 healthy_idx = ds.y[ds.y == HEALTHY].index
-idx = y.index.intersection(healthy_idx)
-X_train, X_test, y_train, y_test = train_test_split(ds.X, ds.y, test_size=0.5,
-                                                    random_state=42, stratify=ds.y)
+VALID_SEX = {'F', 'M'}
+y = ds.sex.loc[healthy_idx].dropna().astype(str)
+y = y[y.isin(VALID_SEX)]
+idx = y.index
+X = ds.X.loc[idx]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5,
+                                                    random_state=42, stratify=y)
 
 print("X train, y train shapes:")
 print(X_train.shape, y_train.shape)
@@ -33,17 +34,18 @@ y_train_encoded = pd.Series(le.fit_transform(y_train), index=y_train.index)
 y_test_encoded = pd.Series(le.transform(y_test), index=y_test.index)
 
 model = LogisticRegression(
-    penalty='l2', solver='lbfgs', max_iter=500,
-    class_weight='balanced',
+    penalty='l1', solver='liblinear', max_iter=1500,
+    class_weight='balanced', C=0.2, fit_intercept=True
 )
 
 scaler = StandardScaler()
 pipeline = Pipeline([
     ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
+    ('MeanExpressionReductor', MeanExpressionReductor(4)),
     ('scaler', StandardScaler()), ('model', model)
 ])
 
-y_train_pred = pipeline.fit(X_train, y_train_encoded)
+pipeline.fit(X_train, y_train_encoded)
 y_pred = pipeline.predict(X_test)
 print("y test encoded:")
 print(y_test_encoded)
@@ -52,3 +54,10 @@ show_report(y_pred, y_test_encoded, ds, le)
 
 print(confusion_matrix(y_test_encoded, y_pred, labels=[0, 1]))
 print(classification_report(y_test_encoded, y_pred, target_names=le.classes_))
+
+
+coef = pipeline.named_steps["model"].coef_.ravel()
+n_zero = (coef == 0).sum()
+n_total = coef.size
+
+print(f"Zerowe współczynniki: {n_zero}/{n_total} ({n_zero/n_total:.2%})")
