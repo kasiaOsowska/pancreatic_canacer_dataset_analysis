@@ -23,14 +23,13 @@ idx = y.index.intersection(healthy_idx)
 X = ds.X.loc[idx]
 y = y.loc[idx]
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4,
                                                     random_state=42)
 
 model = LinearRegression(fit_intercept=True)
-#model = Lasso(alpha = 0.11, max_iter=10000)
 
 pipeline = Pipeline([
-    ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
+    ('NoneInformativeGeneReductor', ConstantExpressionReductor()),
     ('scaler', MinMaxScaler()),
     ('model', model)
 ])

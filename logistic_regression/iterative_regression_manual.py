@@ -23,7 +23,7 @@ def fit_iterative_logistic_regression(X_train, y_train, X_valid, y_valid, num_ge
     print("F1 Score:", f1)
 
     explainer = shap.LinearExplainer(logreg, X_train)
-    shap_values = explainer.shap_values(X_valid)
+    shap_values = explainer.shap_values(X_train)
     # shap_values: (n_samples, n_features)
     shap_per_feature = np.mean(abs(shap_values), axis=0)
 
@@ -47,19 +47,17 @@ ds.y = ds.y.replace({DISEASE: HEALTHY})
 le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
-X_train, X_valid, y_train, y_valid = train_test_split(ds.X, y_encoded, test_size=0.5,
-                                                    random_state=42, stratify=y_encoded)
-X_test, X_valid, y_test, y_valid = train_test_split(X_valid, y_valid, test_size=0.5,
-                                                    random_state=42, stratify=y_valid)
+X_train, X_test, X_valid, y_train, y_test, y_valid = ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25)
 
 print("original X shape: ", X_train.shape)
 preprocessing_pipeline = Pipeline([
-    ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
+    ('ConstantExpressionReductor', ConstantExpressionReductor()),
+    ('HighDispersionReductor', HighDispersionReductor()),
+    ('MeanExpressionReductor',     MeanExpressionReductor(3)),
+    ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
+    ('SexBiasReductor',  CovariatesBiasReductor(covariate=ds.sex)),
     ('AnovaReductor', AnovaReductor()),
-    ('MeanExpressionReductor', MeanExpressionReductor(3)),
-    ('AgeBiasReductor', AgeBiasReductor(age=ds.age)),
-    ('SexBiasReductor', SexBiasReductor(sex=ds.sex)),
-    ('scaler', StandardScaler()),
+    ('scaler',                     StandardScaler()),
 ])
 preprocessing_pipeline.set_output(transform="pandas")
 
@@ -85,11 +83,17 @@ logreg = LogisticRegression(
     class_weight='balanced', l1_ratio=0.1, C=2, fit_intercept=True
 ).fit(X_train, y_train)
 
-logreg.fit(X_train, y_train)
-y_pred = logreg.predict(X_test)
+fpr, tpr, thresholds = roc_curve(y_valid, logreg.predict_proba(X_valid)[:, 1])
+optimal_threshold = thresholds[np.argmax(tpr - fpr)]
+print("Optimal threshold:", optimal_threshold)
 
-cm = confusion_matrix(y_test, y_pred, labels=range(len(le.classes_)))
+y_proba = logreg.predict_proba(X_test)[:, 1]
+y_pred  = (y_proba >= optimal_threshold).astype(int)
+
+print("AUC:", roc_auc_score(y_test, y_proba))
+print("F1 (weighted):", f1_score(y_test, y_pred, average="weighted"))
+print("Confusion matrix:\n", confusion_matrix(y_test, y_pred, labels=range(len(le.classes_))))
+print("Classification report:\n", classification_report(y_test, y_pred, target_names=le.classes_))
+
 show_report(y_pred, y_test, ds, le)
-print("Macierz pomyłek:\n", cm)
-print("\nRaport klasyfikacji:\n", classification_report(y_test, y_pred, target_names=le.classes_))
-print("f1 score: ", f1_score(y_test, y_pred, average="weighted"))
+plot_roc_curve(y_proba, y_test, "logistic regression")

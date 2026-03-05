@@ -1,7 +1,8 @@
 from collections import Counter
 
 from xgboost import XGBClassifier
-from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay, f1_score, \
+    balanced_accuracy_score
 from sklearn.model_selection import train_test_split
 
 from utilz.Dataset import load_dataset
@@ -22,33 +23,41 @@ ds.y = ds.y.replace({DISEASE: HEALTHY})
 le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
-X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0.5,
-                                                    random_state=42, stratify=y_encoded)
+X_train, X_test, X_valid, y_train, y_test, y_valid = ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25)
 
-class_counts = Counter(y_encoded)
+class_counts = Counter(y_train)
 scale_pos_weight = class_counts[0] / class_counts[1]
 print(f"Stosunek klas: {scale_pos_weight:.2f}")
-bst = XGBClassifier(scale_pos_weight=scale_pos_weight, n_estimators=220, colsample_bytree= 0.8, gamma= 1,
-                    learning_rate=0.04, max_depth= 4, min_child_weight= 2, reg_lambda= 3.0, subsample= 0.8)
+bst = XGBClassifier(scale_pos_weight=scale_pos_weight, n_estimators=267, colsample_bytree= 0.905, gamma= 1.64, reg_alpha=1.81,
+                    learning_rate=0.072, max_depth= 2, min_child_weight= 1, reg_lambda= 1.978, subsample= 0.53)
 
 print("original X shape: ", X_train.shape)
 pipeline = Pipeline([
-    ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
-    ('AnovaReductor', AnovaReductor()),
-    ('MeanExpressionReductor', MeanExpressionReductor(3)),
-    ('scaler', StandardScaler()),
+    ('constant',  ConstantExpressionReductor()),
+    ('high_disp', HighDispersionReductor()),
+    ('mean_expr', MeanExpressionReductor(4)),
+    ('age_bias',  CovariatesBiasReductor(covariate=ds.age)),
+    ('sex_bias',  CovariatesBiasReductor(covariate=ds.sex)),
+    ('anova',     AnovaReductor()),
+    ('scaler',    StandardScaler()),
     ('model', bst)
 ])
 
 pipeline.fit(X_train, y_train)
-y_pred = pipeline.predict(X_test)
 
-cm = confusion_matrix(y_test, y_pred, labels=range(len(le.classes_)))
-disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=le.classes_)
-disp.plot(cmap="Blues", colorbar=False)
-plt.title("Macierz pomyłek (Leave-One-Out)")
-plt.show()
+fpr, tpr, thresholds = roc_curve(y_valid, pipeline.predict_proba(X_valid)[:, 1])
+optimal_threshold = thresholds[np.argmax(tpr - fpr)]
+
+y_proba = pipeline.predict_proba(X_test)[:, 1]
+y_pred  = (y_proba >= optimal_threshold).astype(int)
 show_report(y_pred, y_test, ds, le)
-print("Macierz pomyłek:\n", cm)
-print("\nRaport klasyfikacji:\n", classification_report(y_test, y_pred, target_names=le.classes_))
+plot_roc_curve(y_proba, y_test, "logistic regression")
+
+show_report(y_pred, y_test, ds, le)
+print("Optimal threshold:", optimal_threshold)
+print("AUC:", roc_auc_score(y_test, y_proba))
+print("F1 (weighted):", f1_score(y_test, y_pred, average="weighted"))
+print("Balanced accuracy:", balanced_accuracy_score(y_test, y_pred))
+print("Confusion matrix:\n", confusion_matrix(y_test, y_pred, labels=range(len(le.classes_))))
+print("Classification report:\n", classification_report(y_test, y_pred, target_names=le.classes_))
 

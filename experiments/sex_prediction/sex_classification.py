@@ -20,8 +20,8 @@ y = ds.sex.loc[healthy_idx].dropna().astype(str)
 y = y[y.isin(VALID_SEX)]
 idx = y.index
 X = ds.X.loc[idx]
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.5,
-                                                    random_state=42, stratify=y)
+X_train, X_test, X_valid, y_train, y_test, y_valid = ds.get_train_test_valid_split(y=y_encoded, test_size=0.2, valid_size=0.2)
+
 
 print("X train, y train shapes:")
 print(X_train.shape, y_train.shape)
@@ -48,8 +48,7 @@ model = LogisticRegression(
 
 scaler = StandardScaler()
 pipeline = Pipeline([
-    #('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
-    #('MeanExpressionReductor', MeanExpressionReductor(4)),
+    ('ConstantExpressionReductor', ConstantExpressionReductor()),
     ('scaler', StandardScaler()),
     ('model', model)
 ])

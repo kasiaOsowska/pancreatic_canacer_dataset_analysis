@@ -27,10 +27,10 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2,
                                                     random_state=42)
 
 #model = LinearRegression(fit_intercept=True)
-model = Lasso(alpha = 0.11, max_iter=10000)
+model = Lasso(alpha = 0.11, max_iter=10000, fit_intercept=True)
 
 pipeline = Pipeline([
-    ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
+    ('ConstantExpressionReductor', ConstantExpressionReductor()),
     ('scaler', MinMaxScaler()),
     ('model', model)
 ])

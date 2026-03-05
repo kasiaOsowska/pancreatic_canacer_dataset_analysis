@@ -59,12 +59,16 @@ calculate_statistical_tests("CFL1")
 X_MYL9 = ds.X[MYL9]
 calculate_statistical_tests("MYL9")
 
-"""
+
 # worst shap
 calculate_statistical_tests("ENSG00000131828")
 
 #best shap
 calculate_statistical_tests("ENSG00000109814")
+"""
+
+calculate_statistical_tests(SCN1B)
+calculate_statistical_tests(MAGOHB)
 
 
 

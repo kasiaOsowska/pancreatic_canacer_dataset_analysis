@@ -25,11 +25,12 @@ X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0
 
 print("original X shape: ", X_train.shape)
 preprocessing_pipeline = Pipeline([
-    ('NoneInformativeGeneReductor', NoneInformativeGeneReductor()),
+    ('ConstantExpressionReductor', ConstantExpressionReductor()),
+    ('HighDispersionReductor', HighDispersionReductor()),
+    ('MeanExpressionReductor',     MeanExpressionReductor(3)),
+    ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
+    ('SexBiasReductor',  CovariatesBiasReductor(covariate=ds.sex)),
     ('AnovaReductor', AnovaReductor()),
-    ('MeanExpressionReductor', MeanExpressionReductor(3)),
-    ('AgeBiasReductor', AgeBiasReductor(age=ds.age)),
-    ('SexBiasReductor', SexBiasReductor(sex=ds.sex)),
     ('scaler', StandardScaler()),
 ])
 
@@ -45,13 +46,11 @@ full_pipeline = Pipeline([
 
 X = preprocessing_pipeline.fit_transform(ds.X, y_encoded)
 
-cv = StratifiedKFold(n_splits=2, shuffle=True, random_state=42)
+cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
 
 param_grid = {
-    'model__l1_ratio': [0.3, 0.2, 0.1, 0.05],
-    'prep__MeanExpressionReductor__mean_threshold': [2, 3, 4, 5],
-    'prep__SexBiasReductor_d_thresh': [0.5, 0.7, 0.8],
-    'prep__AgeBiasReductor_d_AgeBiasReductor': [0.1, 0.2, 0.3]
+    'model__l1_ratio': [0.25, 0.2, 0.15],
+    'prep__MeanExpressionReductor__mean_threshold': [3, 3.5, 4]
 }
 
 
@@ -65,7 +64,7 @@ grid = GridSearchCV(
     refit=True
 )
 
-grid.fit(ds.X, y_encoded)
+grid.fit(X_train, y_train)
 print("Najlepsze parametry:", grid.best_params_)
 print("Najlepszy wynik CV (f1):", grid.best_score_)
 
