@@ -30,8 +30,8 @@ pipeline = Pipeline([
     ('NoneInformativeGeneReductor', ConstantExpressionReductor()),
     ('AnovaReductor', AnovaReductor()),
     ('MeanExpressionReductor', MeanExpressionReductor(3)),
-    ('AgeBiasReductor', AgeBiasReductor(age=ds.age)),
-    ('SexBiasReductor', SexBiasReductor(sex=ds.sex)),
+    ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
+    ('SexBiasReductor',  CovariatesBiasReductor(covariate=ds.sex)),
     ('scaler', StandardScaler()),
     ('model', model)
 ])

@@ -67,8 +67,7 @@ calculate_statistical_tests("ENSG00000131828")
 calculate_statistical_tests("ENSG00000109814")
 """
 
-calculate_statistical_tests(SCN1B)
-calculate_statistical_tests(MAGOHB)
+calculate_statistical_tests(UNC93B1)
 
 
 

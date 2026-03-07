@@ -31,7 +31,7 @@ pipeline = Pipeline([
     ('MeanExpressionReductor',     MeanExpressionReductor(3)),
     ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
     ('SexBiasReductor',  CovariatesBiasReductor(covariate=ds.sex)),
-    ('AnovaReductor', AnovaReductor()),
+    #('AnovaReductor', AnovaReductor()),
     ('scaler',                     StandardScaler()),
     ('model',                      model),
 ])
