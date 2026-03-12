@@ -20,73 +20,49 @@ class Dataset:
         self.meta.to_csv(os.path.join(path, 'meta.csv'))
         self.y.to_csv(os.path.join(path, 'y.csv'))
 
-    @staticmethod
-    def load(path):
-        X = pd.read_csv(os.path.join(path, 'X.csv'), index_col=0)
-        meta = pd.read_csv(os.path.join(path, 'meta.csv'), index_col=0)
-        y = pd.read_csv(os.path.join(path, 'y.csv'), index_col=0).squeeze()
-        return Dataset(X=X, meta=meta, y=y)
+    def _get_strata(self, X, y):
+        meta = self.meta
 
-    def get_pathway_scores(self, library='Reactome_2022', cache_dir=None,
-                           min_size=5, max_size=500, threads=4):
-        if cache_dir and os.path.exists(os.path.join(cache_dir, 'X.csv')):
-            print(f"Wczytywanie z cache: {cache_dir}")
-            return Dataset.load(cache_dir)
+        df = pd.DataFrame(index=X.index)
+        df["y"] = y
+        df["sex"] = meta["Sex"]
+        df["age_group"] = pd.qcut(meta["Age"], q=3, labels=["young", "mid", "old"])
+        df = df.dropna(subset=["y", "sex", "age_group"])
 
-        mg = mygene.MyGeneInfo()
-        result = mg.querymany(
-            self.X.columns.tolist(),
-            scopes='ensembl.gene',
-            fields='symbol',
-            species='human',
-            as_dataframe=True
-        )
-        ensembl_to_symbol = result['symbol'].dropna().to_dict()
+        X = X.loc[df.index]
+        y = y.loc[df.index]
 
-        X_sym = self.X.rename(columns=ensembl_to_symbol)
-        X_sym = X_sym[[c for c in X_sym.columns if not c.startswith('ENSG')]]
-        X_sym.columns = X_sym.columns.str.upper()
-        X_sym = X_sym.T.groupby(level=0).mean().T
+        strata = df[["y", "sex", "age_group"]].astype(str).agg("_".join, axis=1)
 
-        gene_sets = gp.get_library(library)
+        counts = strata.value_counts()
+        valid = counts[counts >= 2].index
+        mask = strata.isin(valid)
 
-        ss = gp.ssgsea(
-            data=X_sym.T,
-            gene_sets=gene_sets,
-            sample_norm_method='rank',
-            no_plot=True,
-            outdir=None,
-            min_size=min_size,
-            max_size=max_size,
-            threads=threads
-        )
-
-        scores_df = ss.res2d.pivot_table(index='Name', columns='Term', values='NES')
-        scores_df = scores_df.loc[self.X.index]
-
-        ds_pathways = Dataset(X=scores_df, meta=self.meta, y=self.y)
-
-        if cache_dir:
-            ds_pathways.save(cache_dir)
-            print(f"Zapisano cache: {cache_dir}")
-
-        return ds_pathways
+        X = X[mask]
+        y = y[mask]
+        strata = strata[mask]
+        return X, y, strata
 
     def get_train_test_valid_split(self, X, y, test_size=0.25, valid_size=0.25, random_state=2137):
-        X_train, X_temp, y_train, y_temp = train_test_split(
-            X, y,
+
+        X, y, strata = self._get_strata(X, y)
+
+        X_train, X_temp, y_train, y_temp, strata_train, strata_temp = train_test_split(
+            X, y, strata,
             test_size=(test_size + valid_size),
             random_state=random_state,
-            stratify=y
+            stratify=strata
         )
 
         relative_valid_size = valid_size / (test_size + valid_size)
+
+        X_temp, y_temp, strata = self._get_strata(X_temp, y_temp)
 
         X_test, X_valid, y_test, y_valid = train_test_split(
             X_temp, y_temp,
             test_size=relative_valid_size,
             random_state=random_state,
-            stratify=y_temp
+            stratify=strata
         )
 
         return X_train, X_test, X_valid, y_train, y_test, y_valid

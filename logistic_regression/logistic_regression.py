@@ -1,6 +1,7 @@
 from sklearn.metrics import classification_report, confusion_matrix, f1_score, balanced_accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
+from sklearn.feature_selection import VarianceThreshold
 import shap
 
 from utilz.Dataset import load_dataset
@@ -16,24 +17,19 @@ ds.y = ds.y.replace({DISEASE: HEALTHY})
 le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
-X_train, X_test, X_valid, y_train, y_test, y_valid = ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25)
+X_train, X_test, X_valid, y_train, y_test, y_valid = (
+    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25))
 
 model = LogisticRegression(
-    solver='saga', max_iter=15000, penalty='elasticnet',
+    solver='saga', max_iter=15000,
     class_weight='balanced', l1_ratio=0.1, C=2, fit_intercept=True
 )
 
-covariates = pd.DataFrame({'age': ds.age, 'sex': ds.sex})
-
 pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
-    ('HighDispersionReductor', HighDispersionReductor()),
-    ('MeanExpressionReductor',     MeanExpressionReductor(3)),
+    ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
+    ('mean_expr', MeanExpressionReductor(percentile=25)),
     ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
-    ('SexBiasReductor',  CovariatesBiasReductor(covariate=ds.sex)),
-    #('AnovaReductor', AnovaReductor()),
-    ('scaler',                     StandardScaler()),
-    ('model',                      model),
 ])
 
 pipeline.fit(X_train, y_train)
@@ -43,7 +39,6 @@ optimal_threshold = thresholds[np.argmax(tpr - fpr)]
 
 y_proba = pipeline.predict_proba(X_test)[:, 1]
 y_pred  = (y_proba >= optimal_threshold).astype(int)
-
 
 show_report(y_pred, y_test, ds, le)
 plot_roc_curve(y_proba, y_test, "logistic regression")

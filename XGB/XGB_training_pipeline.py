@@ -1,9 +1,8 @@
 from collections import Counter
 
 from xgboost import XGBClassifier
-from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay, f1_score, \
+from sklearn.metrics import classification_report, confusion_matrix, f1_score, \
     balanced_accuracy_score
-from sklearn.model_selection import train_test_split
 
 from utilz.Dataset import load_dataset
 from utilz.helpers import *
@@ -28,18 +27,15 @@ X_train, X_test, X_valid, y_train, y_test, y_valid = ds.get_train_test_valid_spl
 class_counts = Counter(y_train)
 scale_pos_weight = class_counts[0] / class_counts[1]
 print(f"Stosunek klas: {scale_pos_weight:.2f}")
-bst = XGBClassifier(scale_pos_weight=scale_pos_weight, n_estimators=267, colsample_bytree= 0.905, gamma= 1.64, reg_alpha=1.81,
-                    learning_rate=0.072, max_depth= 2, min_child_weight= 1, reg_lambda= 1.978, subsample= 0.53)
+bst = XGBClassifier(scale_pos_weight=scale_pos_weight, n_estimators=300)
 
 print("original X shape: ", X_train.shape)
 pipeline = Pipeline([
-    ('constant',  ConstantExpressionReductor()),
-    ('high_disp', HighDispersionReductor()),
-    ('mean_expr', MeanExpressionReductor(4)),
-    ('age_bias',  CovariatesBiasReductor(covariate=ds.age)),
-    ('sex_bias',  CovariatesBiasReductor(covariate=ds.sex)),
-    ('anova',     AnovaReductor()),
-    ('scaler',    StandardScaler()),
+    ('ConstantExpressionReductor', ConstantExpressionReductor()),
+    ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
+    ('mean_expr', MeanExpressionReductor(percentile=25)),
+    ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
+    ('scaler',                     StandardScaler()),
     ('model', bst)
 ])
 

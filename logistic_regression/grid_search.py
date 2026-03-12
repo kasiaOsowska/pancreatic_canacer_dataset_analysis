@@ -26,12 +26,9 @@ X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0
 print("original X shape: ", X_train.shape)
 preprocessing_pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
-    ('HighDispersionReductor', HighDispersionReductor()),
-    ('MeanExpressionReductor',     MeanExpressionReductor(3)),
-    ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
-    ('SexBiasReductor',  CovariatesBiasReductor(covariate=ds.sex)),
-    ('AnovaReductor', AnovaReductor()),
-    ('scaler', StandardScaler()),
+    ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
+    ('mean_expr', MeanExpressionReductor(percentile=25)),
+    ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age))
 ])
 
 model = LogisticRegression(

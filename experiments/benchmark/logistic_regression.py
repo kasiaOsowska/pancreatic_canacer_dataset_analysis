@@ -1,5 +1,4 @@
-from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix, f1_score, balanced_accuracy_score
 from sklearn.linear_model import LogisticRegression
 import shap
 
@@ -20,8 +19,8 @@ ds.y = ds.y.replace({DISEASE: HEALTHY})
 le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
-X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0.5,
-                                                    random_state=42, stratify=y_encoded)
+X_train, X_test, X_valid, y_train, y_test, y_valid = (
+    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25))
 
 model = LogisticRegression(max_iter=1500, class_weight='balanced',  fit_intercept=True)
 
@@ -33,19 +32,37 @@ pipeline = Pipeline([
 ])
 
 pipeline.fit(X_train, y_train)
-y_pred = pipeline.predict(X_test)
 
-cm = confusion_matrix(y_test, y_pred, labels=range(len(le.classes_)))
-disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=le.classes_)
-disp.plot(cmap="Blues", colorbar=False)
-plt.title("Confusion Matrix")
-plt.show()
-show_report(y_pred, y_test, ds, le)
-
-print("Confusion Matrix:\n", cm)
-print("\nClassification report:\n", classification_report(y_test, y_pred, target_names=le.classes_))
+fpr, tpr, thresholds = roc_curve(y_valid, pipeline.predict_proba(X_valid)[:, 1])
+optimal_threshold = thresholds[np.argmax(tpr - fpr)]
 
 y_proba = pipeline.predict_proba(X_test)[:, 1]
+y_pred  = (y_proba >= optimal_threshold).astype(int)
 
+show_report(y_pred, y_test, ds, le)
 plot_roc_curve(y_proba, y_test, "logistic regression")
+
+preproc = Pipeline(pipeline.steps[:-1])
+feature_names   = preproc.get_feature_names_out()
+X_train_trans   = pd.DataFrame(preproc.transform(X_train), columns=feature_names)
+X_test_trans    = pd.DataFrame(preproc.transform(X_test),  columns=feature_names)
+
+pd.Series(pipeline.named_steps['model'].coef_[0], index=feature_names) \
+    .sort_values(ascending=False) \
+    .to_csv("feature_weights.csv", header=["weight"])
+
+shap_values = shap.LinearExplainer(pipeline.named_steps['model'], X_train_trans) \
+    .shap_values(X_test_trans)
+pd.DataFrame(shap_values, columns=feature_names) \
+    .mean() \
+    .sort_values(ascending=False) \
+    .to_csv("shap_values.csv", header=["weight"])
+
+print("Optimal threshold:", optimal_threshold)
+print("AUC:", roc_auc_score(y_test, y_proba))
+print("F1 (weighted):", f1_score(y_test, y_pred, average="weighted"))
+print("Balanced accuracy:", balanced_accuracy_score(y_test, y_pred))
+print("Confusion matrix:\n", confusion_matrix(y_test, y_pred, labels=range(len(le.classes_))))
+print("Classification report:\n", classification_report(y_test, y_pred, target_names=le.classes_))
+
 

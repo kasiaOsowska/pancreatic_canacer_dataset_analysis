@@ -9,20 +9,14 @@ meta_path = r"../../../data/samples_pancreatic.xlsx"
 data_path = r"../../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
-# ╔════════════════════════════════════════════╗
-# ║  ZMIEŃ TĘ LINIĘ NA SWOJĄ ŚCIEŻKĘ:        ║
-# ╚════════════════════════════════════════════╝
 df = ds.X.copy()
 
-# ---------- ENSG → Symbol ----------
 df.columns = [c.split('.')[0] for c in df.columns]
 mg = mygene.MyGeneInfo()
 res = mg.querymany(list(df.columns), scopes='ensembl.gene',
                    fields='symbol', species='human', returnall=True)
 ensg2sym = {h['query']: h['symbol'] for h in res['out'] if 'symbol' in h}
 print(f"Zmapowano {len(ensg2sym)}/{len(df.columns)} genów")
-
-# ---------- Pobierz Reactome ----------
 reactome = gp.get_library(name='Reactome_2022', organism='Human')
 print(f"Reactome: {len(reactome)} szlaków")
 

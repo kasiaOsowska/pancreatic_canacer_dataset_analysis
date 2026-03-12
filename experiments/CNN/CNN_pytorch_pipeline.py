@@ -7,6 +7,7 @@ import torch.nn as nn
 from matplotlib import pyplot as plt
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.preprocessing import LabelEncoder
+import pandas as pd
 
 from utilz.Dataset import load_dataset
 from utilz.constans import DISEASE, HEALTHY
@@ -33,11 +34,10 @@ ds = load_dataset(data_path, meta_path, label_col="Group")
 ds.y = ds.y.replace({DISEASE: HEALTHY})
 
 le = LabelEncoder()
-y_encoded = le.fit_transform(ds.y)
+y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
-X_train, X_test, X_valid, y_train, y_test, y_valid = ds.get_train_test_valid_split(
-    ds.X, y_encoded, test_size=0.25, valid_size=0.25
-)
+X_train, X_test, X_valid, y_train, y_test, y_valid = (
+    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25))
 
 n_features = X_train.shape[1]
 print(f"Features: {n_features}, Train: {len(X_train)}, Test: {len(X_test)}, Valid: {len(X_valid)}")
@@ -56,7 +56,7 @@ class GeneDataset(torch.utils.data.Dataset):
         return self.X[idx], self.y[idx]
 
 
-batch_size = 16
+batch_size = 32
 train_loader = torch.utils.data.DataLoader(GeneDataset(X_train, y_train), batch_size=batch_size, shuffle=True)
 valid_loader = torch.utils.data.DataLoader(GeneDataset(X_valid, y_valid), batch_size=batch_size)
 test_loader = torch.utils.data.DataLoader(GeneDataset(X_test, y_test), batch_size=batch_size)
@@ -67,29 +67,29 @@ class CancerCNN(nn.Module):
     def __init__(self, n_features):
         super().__init__()
         self.features = nn.Sequential(
-            nn.Conv1d(1, 16, kernel_size=7, padding=3),
+            nn.Conv1d(1, 8, kernel_size=7, padding=3),
+            nn.BatchNorm1d(8),
+            nn.ReLU(),
+            nn.Dropout(0.3),
+            nn.MaxPool1d(4),
+
+            nn.Conv1d(8, 16, kernel_size=5, padding=2),
             nn.BatchNorm1d(16),
             nn.ReLU(),
             nn.Dropout(0.3),
             nn.MaxPool1d(4),
 
-            nn.Conv1d(16, 32, kernel_size=5, padding=2),
+            nn.Conv1d(16, 32, kernel_size=3, padding=1),
             nn.BatchNorm1d(32),
-            nn.ReLU(),
-            nn.Dropout(0.3),
-            nn.MaxPool1d(4),
-
-            nn.Conv1d(32, 64, kernel_size=3, padding=1),
-            nn.BatchNorm1d(64),
             nn.ReLU(),
             nn.AdaptiveAvgPool1d(1),
         )
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(64, 32),
+            nn.Linear(32, 16),
             nn.ReLU(),
             nn.Dropout(0.5),
-            nn.Linear(32, 1),
+            nn.Linear(16, 1),
         )
 
     def forward(self, x):

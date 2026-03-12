@@ -11,12 +11,14 @@ from utilz.Dataset import load_dataset
 from utilz.helpers import *
 from utilz.preprocessing_utilz import *
 from utilz.constans import DISEASE, HEALTHY
+from get_pathway import get_pathway_scores
 
 meta_path = r"../../../data/samples_pancreatic.xlsx"
 data_path = r"../../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
-ds_pathways = ds.get_pathway_scores(
+ds_pathways = get_pathway_scores(
+    ds,
     library='Reactome_2022',
     cache_dir='./cache/reactome'
 )

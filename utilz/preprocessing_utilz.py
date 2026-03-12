@@ -1,39 +1,44 @@
-from scipy.stats import mannwhitneyu
-from sklearn.base import BaseEstimator, TransformerMixin
-import numpy as np
 from sklearn.feature_selection import f_classif
-from sklearn.linear_model import Lasso
+import statsmodels.api as sm
+from statsmodels.stats.multitest import multipletests
+import numpy as np
 import pandas as pd
-import copy
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.base import BaseEstimator, TransformerMixin
 
 
-class AnovaReductor(BaseEstimator, TransformerMixin):
-    def __init__(self):
+from sklearn.feature_selection import SelectFdr, f_classif
+
+class AnovaFdrReductor(BaseEstimator, TransformerMixin):
+    def __init__(self, alpha=0.05):
+        self.alpha = alpha
         self.selected_genes_ = None
 
     def fit(self, X, y=None):
         F, p = f_classif(X, y)
-        self.selected_genes_ = X.columns[p < 0.05]
+        # Benjamini-Hochberg FDR correction
+        _, p_corrected, _, _ = multipletests(p, alpha=self.alpha, method='fdr_bh')
+        self.selected_genes_ = X.columns[p_corrected < self.alpha]
         return self
 
     def transform(self, X):
         X = X[self.selected_genes_]
-        print("data shape after AnovaReductor: ", X.shape)
+        print("data shape after AnovaFdrReductor: ", X.shape)
         return X
 
     def get_feature_names_out(self, input_features=None):
         return np.asarray(self.selected_genes_, dtype=object)
 
 
+
 class MeanExpressionReductor(BaseEstimator, TransformerMixin):
-    def __init__(self, mean_threshold=3):
+    def __init__(self, percentile=25):
         self.selected_genes_ = None
-        self.mean_threshold = mean_threshold
+        self.percentile = percentile
 
     def fit(self, X, y=None):
         mean_per_gene = X.mean(axis=0)
-        self.selected_genes_ = mean_per_gene[mean_per_gene > self.mean_threshold].index
+        threshold = np.percentile(mean_per_gene, self.percentile)
+        self.selected_genes_ = mean_per_gene[mean_per_gene > threshold].index
         return self
 
     def transform(self, X):
@@ -63,62 +68,110 @@ class ConstantExpressionReductor(BaseEstimator, TransformerMixin):
         return np.asarray(self.selected_genes_, dtype=object)
 
 
+class HighVarianceReductor(BaseEstimator, TransformerMixin):
+    def __init__(self, percentile=95):
+        self.selected_genes_ = None
+        self.percentile = percentile
+
+    def fit(self, X, y=None):
+        var_per_gene = X.var(axis=0)
+        threshold = np.percentile(var_per_gene, self.percentile)
+        self.selected_genes_ = var_per_gene[var_per_gene <= threshold].index
+        return self
+
+    def transform(self, X):
+        X = X[self.selected_genes_]
+        print("data shape after HighVarianceReductor: ", X.shape)
+        return X
+
+    def get_feature_names_out(self, input_features=None):
+        return np.asarray(self.selected_genes_, dtype=object)
+
+
 class CovariatesBiasReductor(BaseEstimator, TransformerMixin):
-    def __init__(self, covariate: pd.Series, p_thresh=1e-3):
+
+    def __init__(self, covariate: pd.Series, p_thresh: float = 0.05):
         self.covariate = covariate
         self.p_thresh = p_thresh
         self.selected_genes_ = None
 
-    def __sklearn_clone__(self):
-        return copy.copy(self)
+    def fit(self, X: pd.DataFrame, y=None):
 
-    def fit(self, X, y=None):
-        import statsmodels.api as sm
-        from statsmodels.stats.multitest import multipletests
+        genes = list(X.columns)
+        cov = pd.Series(self.covariate).reindex(X.index).astype(float)
+        missing_cov = cov.isna().sum()
+        if missing_cov > 0:
+            print(f"[WARN] {missing_cov} missing coves, skipped in fit()")
 
-        cov = self.covariate.loc[X.index].copy()
         valid_idx = cov.dropna().index
-        cov = pd.Series(LabelEncoder().fit_transform(cov.loc[valid_idx]), index=valid_idx, dtype=float)
-
-        covs = pd.DataFrame({'covariate': cov}, index=valid_idx)
+        cov = cov.loc[valid_idx]
+        covs = pd.DataFrame(index=valid_idx)
+        covs["covariate"] = cov
         if y is not None:
-            y_sub = pd.Series(LabelEncoder().fit_transform(pd.Series(y, index=X.index).loc[valid_idx]), index=valid_idx,
-                              dtype=float)
-            covs['disease'] = y_sub.values
+            y_series = pd.Series(y).reindex(X.index)
+            y_series = y_series.loc[valid_idx].astype(float)
+            covs["disease"] = y_series
 
         covs_matrix = sm.add_constant(covs)
-        genes = list(X.columns)
+        cov_col_idx = list(covs_matrix.columns).index("covariate")
         p_values = []
-
         for gene in genes:
-            model = sm.OLS(X.loc[valid_idx, gene].values, covs_matrix.values).fit()
-            p_values.append(model.pvalues[1])
-
-        _, p_adj, _, _ = multipletests(p_values, method='fdr_bh')
-        self.selected_genes_ = [g for g, p in zip(genes, p_adj) if p >= self.p_thresh]
+            expr = X.loc[valid_idx, gene].astype(float).values
+            try:
+                model = sm.OLS(expr, covs_matrix.values).fit()
+                p = model.pvalues[cov_col_idx]
+            except Exception:
+                p = np.nan
+            p_values.append(p)
+        p_values = np.array(p_values)
+        p_values = np.nan_to_num(p_values, nan=1.0)
+        _, p_adj, _, _ = multipletests(p_values, method="fdr_bh")
+        self.selected_genes_ = [
+            g for g, p in zip(genes, p_adj) if p >= self.p_thresh
+        ]
         return self
 
-    def transform(self, X):
+    def transform(self, X: pd.DataFrame):
         print("data shape after CovariatesBiasReductor: ", X.shape)
         return X[self.selected_genes_]
 
     def get_feature_names_out(self, input_features=None):
         return np.asarray(self.selected_genes_, dtype=object)
 
-class HighDispersionReductor(BaseEstimator, TransformerMixin):
-    def __init__(self, quantile=0.95):
-        self.quantile = quantile
+
+class MRMRReductor(BaseEstimator, TransformerMixin):
+    def __init__(self, n_features=100):
         self.selected_genes_ = None
+        self.n_features = n_features
 
     def fit(self, X, y=None):
-        dispersion = X.var() / (X.mean() + 1e-8)
-        threshold = dispersion.quantile(self.quantile)
-        self.selected_genes_ = dispersion[dispersion <= threshold].index
+        from sklearn.feature_selection import f_classif
+
+        genes = X.columns
+        f_scores, _ = f_classif(X, y)
+        relevance = pd.Series(f_scores, index=genes).fillna(0)
+        corr_matrix = X.corr().abs()
+
+        selected = []
+        remaining = list(genes)
+        first = relevance[remaining].idxmax()
+        selected.append(first)
+        remaining.remove(first)
+
+        for _ in range(1, min(self.n_features, len(genes))):
+            redundancy = corr_matrix.loc[remaining, selected].mean(axis=1)
+            scores = relevance[remaining] - redundancy
+            best_gene = scores.idxmax()
+            selected.append(best_gene)
+            remaining.remove(best_gene)
+
+        self.selected_genes_ = selected
         return self
 
     def transform(self, X):
-        print("data shape after HighDispersionReductor: ", X.shape)
-        return X[self.selected_genes_]
+        X = X[self.selected_genes_]
+        print("data shape after MRMRReductor: ", X.shape)
+        return X
 
     def get_feature_names_out(self, input_features=None):
         return np.asarray(self.selected_genes_, dtype=object)

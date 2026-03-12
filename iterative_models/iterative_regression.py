@@ -34,13 +34,9 @@ model = LogisticRegression(
 print("original X shape: ", X_train.shape)
 pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
-    ('HighDispersionReductor', HighDispersionReductor()),
-    ('MeanExpressionReductor',     MeanExpressionReductor(3)),
+    ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
+    ('mean_expr', MeanExpressionReductor(percentile=25)),
     ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
-    ('SexBiasReductor',  CovariatesBiasReductor(covariate=ds.sex)),
-    ('AnovaReductor', AnovaReductor()),
-    ('scaler',                     StandardScaler()),
-    ('scaler', StandardScaler()),
     ("rfe", RFE(estimator=model, n_features_to_select=1500, step=0.2, verbose = 1)),
 ])
 
@@ -64,7 +60,3 @@ print("\nClassification report:\n", classification_report(y_test, y_pred, target
 plot_roc_curve(y_proba, y_test, "logistic regression")
 
 print("f1 score: ", f1_score(y_test, y_pred, average="weighted"))
-
-
-
-

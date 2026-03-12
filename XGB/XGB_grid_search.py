@@ -23,13 +23,11 @@ class_counts = Counter(y_encoded)
 scale_pos_weight = class_counts[0] / class_counts[1]
 
 pipe = Pipeline([
-    ('constant',  ConstantExpressionReductor()),
-    ('high_disp', HighDispersionReductor()),
-    ('mean_expr', MeanExpressionReductor(3)),
-    ('age_bias',  CovariatesBiasReductor(covariate=ds.age)),
-    ('sex_bias',  CovariatesBiasReductor(covariate=ds.sex)),
-    ('anova',     AnovaReductor()),
-    ('scaler',    StandardScaler()),
+    ('ConstantExpressionReductor', ConstantExpressionReductor()),
+    ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
+    ('mean_expr', MeanExpressionReductor(percentile=25)),
+    ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
+    ('scaler',                     StandardScaler()),
     ('clf',       XGBClassifier(scale_pos_weight=scale_pos_weight,
                                 eval_metric='logloss', random_state=42, n_jobs=1)),
 ])
@@ -61,6 +59,7 @@ search = RandomizedSearchCV(
 search.fit(ds.X, y_encoded)
 print("Najlepsze parametry:", search.best_params_)
 print("Najlepszy wynik CV (AUC):", search.best_score_)
-
-#Najlepsze parametry: {'clf__colsample_bytree': np.float64(0.9056020883680015), 'clf__gamma': np.float64(1.6412789514879107), 'clf__learning_rate': np.float64(0.07259396701015727), 'clf__max_depth': 2, 'clf__min_child_weight': 1, 'clf__n_estimators': 267, 'clf__reg_alpha': np.float64(1.8107012839121275), 'clf__reg_lambda': np.float64(1.9789556739464822), 'clf__subsample': np.float64(0.5346806504375827)}
-#Najlepszy wynik CV (AUC): 0.8602318840579709
+"""
+Najlepsze parametry: {'clf__colsample_bytree': np.float64(0.9541329429833268), 'clf__gamma': np.float64(0.47912378133394484), 'clf__learning_rate': np.float64(0.02448948720912231), 'clf__max_depth': 5, 'clf__min_child_weight': 6, 'clf__n_estimators': 346, 'clf__reg_alpha': np.float64(1.344271094811757), 'clf__reg_lambda': np.float64(4.808098076643588), 'clf__subsample': np.float64(0.6188187719961998)}
+Najlepszy wynik CV (AUC): 0.857159420289855
+"""

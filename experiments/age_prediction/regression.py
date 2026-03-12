@@ -23,8 +23,8 @@ idx = y.index.intersection(healthy_idx)
 X = ds.X.loc[idx]
 y = y.loc[idx]
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4,
-                                                    random_state=42)
+X_train, X_test, X_valid, y_train, y_test, y_valid = (
+    ds.get_train_test_valid_split(ds.X, y, test_size=0.25, valid_size=0.25))
 
 model = LinearRegression(fit_intercept=True)
 
