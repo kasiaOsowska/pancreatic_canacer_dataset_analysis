@@ -54,7 +54,7 @@ preprocessing_pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
     ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
     ('mean_expr', MeanExpressionReductor(percentile=25)),
-    ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
+    #('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
     ('scaler',                     StandardScaler()),
 ])
 preprocessing_pipeline.set_output(transform="pandas")

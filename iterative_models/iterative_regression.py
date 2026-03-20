@@ -36,7 +36,7 @@ pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
     ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
     ('mean_expr', MeanExpressionReductor(percentile=25)),
-    ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
+    #('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
     ("rfe", RFE(estimator=model, n_features_to_select=1500, step=0.2, verbose = 1)),
 ])
 

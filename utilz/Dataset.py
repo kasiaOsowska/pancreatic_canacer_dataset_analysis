@@ -1,9 +1,6 @@
 import os
 import pandas as pd
-import mygene
-import gseapy as gp
 from sklearn.model_selection import train_test_split
-from utilz.constans import DISEASE, HEALTHY, CANCER
 
 
 class Dataset:
@@ -43,8 +40,7 @@ class Dataset:
         strata = strata[mask]
         return X, y, strata
 
-    def get_train_test_valid_split(self, X, y, test_size=0.25, valid_size=0.25, random_state=2137):
-
+    def get_train_test_valid_split(self, X, y, test_size=0.25, valid_size=0.25, random_state=2137, return_valid=True):
         X, y, strata = self._get_strata(X, y)
 
         X_train, X_temp, y_train, y_temp, strata_train, strata_temp = train_test_split(
@@ -53,6 +49,9 @@ class Dataset:
             random_state=random_state,
             stratify=strata
         )
+
+        if not return_valid:
+            return X_train, X_temp, y_train, y_temp
 
         relative_valid_size = valid_size / (test_size + valid_size)
 

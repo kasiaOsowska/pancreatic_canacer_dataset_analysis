@@ -1,17 +1,20 @@
 from sklearn.metrics import classification_report, confusion_matrix, f1_score, balanced_accuracy_score
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
-from sklearn.feature_selection import VarianceThreshold
 import shap
 
 from utilz.Dataset import load_dataset
 from utilz.preprocessing_utilz import *
 from utilz.helpers import *
 
+
 meta_path = r"../../data/samples_pancreatic.xlsx"
 data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
+print(ds.X.shape)
+y_containing_disease = ds.y
+
+# combine healthy and disease into one class
 ds.y = ds.y.replace({DISEASE: HEALTHY})
 
 le = LabelEncoder()
@@ -25,11 +28,14 @@ model = LogisticRegression(
     class_weight='balanced', l1_ratio=0.1, C=2, fit_intercept=True
 )
 
+print("original X shape: ", X_train.shape)
 pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
     ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
     ('mean_expr', MeanExpressionReductor(percentile=25)),
     ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
+    ('scaler',                     StandardScaler()),
+    ('model',                      model),
 ])
 
 pipeline.fit(X_train, y_train)

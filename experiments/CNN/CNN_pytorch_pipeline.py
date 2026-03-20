@@ -6,12 +6,14 @@ import torch
 import torch.nn as nn
 from matplotlib import pyplot as plt
 from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 
 from utilz.Dataset import load_dataset
 from utilz.constans import DISEASE, HEALTHY
 from utilz.helpers import plot_roc_curve
+from utilz.preprocessing_utilz import *
 
 # --- reproducibility ---
 seed = 42
@@ -38,6 +40,17 @@ y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
 X_train, X_test, X_valid, y_train, y_test, y_valid = (
     ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25))
+
+pipeline = Pipeline([
+    ('ConstantExpressionReductor', ConstantExpressionReductor()),
+    ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
+    ('mean_expr', MeanExpressionReductor(percentile=25))
+])
+
+X_train = pipeline.fit_transform(X_train, y_train)
+X_valid = pipeline.transform(X_valid)
+X_test = pipeline.transform(X_test)
+
 
 n_features = X_train.shape[1]
 print(f"Features: {n_features}, Train: {len(X_train)}, Test: {len(X_test)}, Valid: {len(X_valid)}")
@@ -112,8 +125,8 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=8, min_lr=1e-6)
 
 # --- training ---
-epochs = 150
-patience = 20
+epochs = 50
+patience = 10
 best_val_loss = float("inf")
 patience_counter = 0
 best_state = None

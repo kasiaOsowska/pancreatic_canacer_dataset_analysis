@@ -223,3 +223,6 @@ graphics
 
 cache/
 .claude/
+
+# feature weights
+*.csv

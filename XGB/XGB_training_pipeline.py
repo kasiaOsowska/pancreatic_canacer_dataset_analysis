@@ -34,8 +34,8 @@ pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
     ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
     ('mean_expr', MeanExpressionReductor(percentile=25)),
-    ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
-    ('scaler',                     StandardScaler()),
+    ('AgeBiasReductor', CovariatesBiasReductor(covariate=ds.age)),
+    ('scaler', StandardScaler()),
     ('model', bst)
 ])
 
@@ -45,7 +45,7 @@ fpr, tpr, thresholds = roc_curve(y_valid, pipeline.predict_proba(X_valid)[:, 1])
 optimal_threshold = thresholds[np.argmax(tpr - fpr)]
 
 y_proba = pipeline.predict_proba(X_test)[:, 1]
-y_pred  = (y_proba >= optimal_threshold).astype(int)
+y_pred  = (y_proba >= optimal_threshold)
 show_report(y_pred, y_test, ds, le)
 plot_roc_curve(y_proba, y_test, "logistic regression")
 
