@@ -45,34 +45,48 @@ def show_report(y_pred, y_test_encoded, dataset, le):
     return
 
 
-def plot_pca(X, y_encoded, n_compontns, le):
+from itertools import combinations
+import math
+
+def plot_pca(X, y_encoded, n_components, le):
     viz_pipe = Pipeline([
         ("scaler", StandardScaler(with_mean=True, with_std=True)),
-        ("pca", PCA(n_components=n_compontns, svd_solver="full", random_state=42))
+        ("pca", PCA(n_components=n_components, svd_solver="full", random_state=42))
     ])
 
-    X_train_pca = viz_pipe.fit_transform(X)
+    X_pca = viz_pipe.fit_transform(X)
     evr = viz_pipe.named_steps["pca"].explained_variance_ratio_
     classes = le.classes_
-    y_test_int = y_encoded.values
+    y_int = y_encoded.values
 
-    plt.figure(figsize=(7, 6))
-    for i in range(n_compontns):
-        for j in range(i + 1, n_compontns):
-            for k, cls in enumerate(classes):
-                mask = (y_test_int == k)
-                plt.scatter(
-                    X_train_pca[mask, i], X_train_pca[mask, j],
-                    label=str(cls), alpha=0.3, s=45
-                )
+    pairs = list(combinations(range(n_components), 2))
+    n_pairs = len(pairs)
+    n_cols = min(3, n_pairs)
+    n_rows = math.ceil(n_pairs / n_cols)
 
-            plt.xlabel(f"PC{i} ({evr[i] * 100:.1f}% wariancji)")
-            plt.ylabel(f"PC{j} ({evr[j] * 100:.1f}% wariancji)")
-            plt.title("PCA")
-            plt.legend(title="Klasa")
-            plt.grid(True, linestyle="--", alpha=0.3)
-            plt.tight_layout()
-            plt.show()
+    fig, axes = plt.subplots(n_rows, n_cols,
+                             figsize=(5 * n_cols, 4.5 * n_rows),
+                             squeeze=False)
+
+    for idx, (i, j) in enumerate(pairs):
+        ax = axes[idx // n_cols][idx % n_cols]
+        for k, cls in enumerate(classes):
+            mask = (y_int == k)
+            ax.scatter(
+                X_pca[mask, i], X_pca[mask, j],
+                label=str(cls), alpha=0.5, s=45
+            )
+        ax.set_xlabel(f"PC{i+1} ({evr[i]*100:.1f}% wariancji)")
+        ax.set_ylabel(f"PC{j+1} ({evr[j]*100:.1f}% wariancji)")
+        ax.set_title(f"PC{i+1} vs PC{j+1}")
+        ax.legend(title="Klasa", fontsize=8)
+        ax.grid(True, linestyle="--", alpha=0.3)
+    for idx in range(n_pairs, n_rows * n_cols):
+        axes[idx // n_cols][idx % n_cols].set_visible(False)
+
+    fig.suptitle("PCA – wszystkie pary składowych", fontsize=14, y=1.01)
+    plt.tight_layout()
+    plt.show()
 
 def plot_scatter_boxplot(X, y, gene_name):
     unique_groups = np.unique(y)
@@ -130,6 +144,25 @@ def plot_roc_curve(X, y, title):
     plt.xlabel("False Positive Rate (1 - specificity)")
     plt.ylabel("True Positive Rate (sensitivity)")
     plt.title("ROC curve for " + title)
+    plt.legend()
+    plt.grid(alpha=0.1)
+    plt.show()
+
+from sklearn.metrics import precision_recall_curve, average_precision_score
+
+def plot_pr_curve(y_proba, y_true, title):
+    precision, recall, _ = precision_recall_curve(y_true, y_proba)
+    ap = average_precision_score(y_true, y_proba)
+    baseline = y_true.mean()   # random classifier = % klasy pozytywnej
+    print(f"Average Precision = {ap:.3f}")
+
+    plt.figure(figsize=(6, 6))
+    plt.plot(recall, precision, label=f"PR curve (AP = {ap:.3f})")
+    plt.axhline(baseline, linestyle="--", color="gray",
+                label=f"Random (baseline = {baseline:.3f})")
+    plt.xlabel("Recall (sensitivity)")
+    plt.ylabel("Precision (PPV)")
+    plt.title("Precision-Recall curve for " + title)
     plt.legend()
     plt.grid(alpha=0.1)
     plt.show()

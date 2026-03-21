@@ -19,7 +19,8 @@ def test_covariate_bias_reductor():
         ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25))
 
     # filtracja genów skorelowanych z wiekiem (fit na train, z diagnozą)
-    reductor = CovariatesBiasReductor(covariate=ds.age, p_thresh=0.005)
+    reductor =  CovariatesBiasReductor(covariate=ds.age, beta_thresh=0.00005)
+
     reductor.fit(X_train, y_train)
     n_before, n_after = X_train.shape[1], len(reductor.selected_genes_)
     print(f"Geny: {n_before} → {n_after}")
@@ -69,7 +70,7 @@ def test_covariate_bias_reductor():
         ax.grid(alpha=0.3)
 
     plt.suptitle(f"Wpływ usunięcia genów skorelowanych z wiekiem\n"
-                 f"(p_thresh=0.05, FDR-BH, {n_before}→{n_after} genów)", y=2)
+                 f"(p_thresh=0.05, FDR-BH, {n_before} do{n_after} genów)", y=2)
     plt.tight_layout()
     plt.show()
 
@@ -87,7 +88,7 @@ def test_high_variance_reductor():
     const = ConstantExpressionReductor()
     X_tr = const.fit_transform(X_train, y_train)
 
-    hv = HighVarianceReductor(percentile=95)
+    hv = AnovaReductor(percentile=95)
     X_tr_hv = hv.fit_transform(X_tr)
 
     var_before = X_tr.var(axis=0)

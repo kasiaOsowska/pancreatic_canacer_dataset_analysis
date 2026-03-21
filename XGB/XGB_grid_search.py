@@ -24,8 +24,9 @@ le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
 # Podział przed preprocessingiem
-X_train, X_test, y_train, y_test = (
-    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.4, valid_size=0, return_valid = False))
+
+X_train, X_test, X_valid, y_train, y_test, y_valid = (
+    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25))
 
 # scale_pos_weight tylko z train
 class_counts = Counter(y_train)
@@ -33,9 +34,9 @@ scale_pos_weight = class_counts[0] / class_counts[1]
 
 pipe = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
-    ('HighVarianceReductor',       HighVarianceReductor(percentile=95)),
+    ('HighVarianceReductor', AnovaReductor(percentile=95)),
     ('mean_expr',                  MeanExpressionReductor(percentile=25)),
-    ('AgeBiasReductor',            CovariatesBiasReductor(covariate=ds.age.loc[X_train.index])),
+    #('AgeBiasReductor',            CovariatesBiasReductor(covariate=ds.age.loc[X_train.index])),
     ('scaler',                     StandardScaler()),
     ('clf',                        XGBClassifier(
                                         scale_pos_weight=scale_pos_weight,
@@ -57,10 +58,10 @@ param_dist = {
     'clf__min_child_weight': randint(1, 10),
 }
 
-X_train_valid = pd.concat([X_train, X_test])
-y_train_valid = pd.concat([y_train, y_test])
+X_train_valid = pd.concat([X_train, X_valid])
+y_train_valid = pd.concat([y_train, y_valid])
 train_idx = np.arange(len(X_train))
-valid_idx = np.arange(len(X_train), len(X_train) + len(X_test))
+valid_idx = np.arange(len(X_train), len(X_train) + len(X_valid))
 fixed_split = [(train_idx, valid_idx)]
 
 search = RandomizedSearchCV(
@@ -89,3 +90,7 @@ print(classification_report(y_test, y_test_pred, target_names=le.classes_))
 print("Balanced accuracy:", balanced_accuracy_score(y_test, y_test_pred))
 print("Confusion matrix:\n", confusion_matrix(y_test, y_test_pred))
 
+"""
+Najlepsze parametry: {'clf__colsample_bytree': np.float64(0.5971369767560211), 'clf__gamma': np.float64(0.14188183399985532), 'clf__learning_rate': np.float64(0.12506730989202763), 'clf__max_depth': 5, 'clf__min_child_weight': 3, 'clf__n_estimators': 242, 'clf__reg_alpha': np.float64(0.751165905279888), 'clf__reg_lambda': np.float64(0.781945819522607), 'clf__subsample': np.float64(0.789140070498087)}
+Najlepszy wynik na valid (AUC): 0.8843260188087774
+"""

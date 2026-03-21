@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from utilz.constans import CANCER
 
 
 class Dataset:
@@ -11,25 +12,27 @@ class Dataset:
         self.age = self.meta['Age']
         self.sex = self.meta['Sex']
 
-    def save(self, path):
-        os.makedirs(path, exist_ok=True)
-        self.X.to_csv(os.path.join(path, 'X.csv'))
-        self.meta.to_csv(os.path.join(path, 'meta.csv'))
-        self.y.to_csv(os.path.join(path, 'y.csv'))
-
     def _get_strata(self, X, y):
-        meta = self.meta
+        meta = self.meta.loc[X.index]
 
         df = pd.DataFrame(index=X.index)
         df["y"] = y
         df["sex"] = meta["Sex"]
-        df["age_group"] = pd.qcut(meta["Age"], q=3, labels=["young", "mid", "old"])
-        df = df.dropna(subset=["y", "sex", "age_group"])
+        df["age_group"] = (
+            pd.qcut(meta["Age"], q=3, labels=["young", "mid", "old"], duplicates="drop")
+            .astype(object)
+            .fillna("unknown")
+        )
+        df["stage"] = meta["Stage"].replace("NA", "none")
+        stage = meta["Stage"].replace("NA", "none").fillna("none")
+        stage = stage.replace({"I": "I_II", "II": "I_II"})
+        df["stage"] = stage
+        print(df["stage"].value_counts())
 
         X = X.loc[df.index]
         y = y.loc[df.index]
 
-        strata = df[["y", "sex", "age_group"]].astype(str).agg("_".join, axis=1)
+        strata = df[["y", "sex", "age_group", "stage"]].astype(str).agg("_".join, axis=1)
 
         counts = strata.value_counts()
         valid = counts[counts >= 2].index
@@ -63,11 +66,15 @@ class Dataset:
             random_state=random_state,
             stratify=strata
         )
+        _assert_no_leakage(
+            X_train.index, X_test.index, X_valid.index,
+            names=["Train", "Test", "Valid"]
+        )
 
         return X_train, X_test, X_valid, y_train, y_test, y_valid
 
 
-def load_dataset(path_csv, path_xlsx, label_col=None):
+def load_dataset(path_csv, path_xlsx, label_col=None, separate_stage_iv = False):
     df_features = pd.read_csv(path_csv, sep=";", decimal=",", index_col=0)
     df_features = df_features.T
     df_metadata = pd.read_excel(path_xlsx, index_col=0)
@@ -81,4 +88,27 @@ def load_dataset(path_csv, path_xlsx, label_col=None):
 
     y = meta[label_col] if label_col is not None else meta["Group"]
 
+    if separate_stage_iv:
+        y = y.mask((y == CANCER) & (meta["Stage"] == "IV"), "cancer_IV")
+
     return Dataset(X=df_features, meta=meta, y=y)
+
+def _assert_no_leakage(*splits: pd.Index, names: list[str] = None) -> None:
+    if names is None:
+        names = [f"Split_{i}" for i in range(len(splits))]
+
+    ok = True
+    for i in range(len(splits)):
+        for j in range(i + 1, len(splits)):
+            overlap = splits[i].intersection(splits[j])
+            if len(overlap) > 0:
+                print(f"LEAKAGE: {names[i]} ∩ {names[j]} = {len(overlap)}")
+                print(f"   Indexes: {overlap.tolist()}")
+                ok = False
+            else:
+                print(f"{names[i]} ∩ {names[j]} = 0")
+
+    if ok:
+        print("\n[ASSERTION PASSED] No leakage detected between splits.")
+    else:
+        raise AssertionError("LEAKAGE")

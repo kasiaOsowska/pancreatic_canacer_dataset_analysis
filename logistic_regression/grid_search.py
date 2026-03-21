@@ -1,11 +1,19 @@
-from sklearn.metrics import classification_report, confusion_matrix, ConfusionMatrixDisplay
-from sklearn.model_selection import train_test_split, cross_val_predict, StratifiedKFold, GridSearchCV
+from sklearn.metrics import classification_report, balanced_accuracy_score, confusion_matrix
+from sklearn.model_selection import (
+    train_test_split,
+    StratifiedKFold,
+    RandomizedSearchCV
+)
 from sklearn.linear_model import LogisticRegression
-import shap
-
+from scipy.stats import uniform, loguniform
+import numpy as np
+from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
+from sklearn.model_selection import RandomizedSearchCV
+from scipy.stats import randint, uniform
 from utilz.Dataset import load_dataset
 from utilz.preprocessing_utilz import *
 from utilz.helpers import *
+from utilz.constans import DISEASE, HEALTHY
 
 
 meta_path = r"../../data/samples_pancreatic.xlsx"
@@ -13,27 +21,32 @@ data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
 y_containing_disease = ds.y
-
-# combine healthy and disease into one class
 ds.y = ds.y.replace({DISEASE: HEALTHY})
 
 le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
-X_train, X_test, y_train, y_test = train_test_split(ds.X, y_encoded, test_size=0.5,
-                                                    random_state=42, stratify=y_encoded)
 
-print("original X shape: ", X_train.shape)
+X_train, X_test, y_train, y_test = (
+    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25, return_valid=False))
+sex_numeric = ds.sex.map({"F": 0, "M": 1})
+
+print("X_train shape:", X_train.shape)
+print("X_test shape: ", X_test.shape)
+
 preprocessing_pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
-    ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
-    ('mean_expr', MeanExpressionReductor(percentile=25)),
-    ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age))
+    ('AnovaReductor', AnovaReductor(percentile=80)),
+    ('MeanExpressionReductor', MeanExpressionReductor(percentile=25)),
+    ('AgeBiasReductor', CovariatesBiasReductor(covariate=ds.age)),
+    ('SexBiasReductor', CovariatesBiasReductor(covariate=sex_numeric)),
+    ('scaler', StandardScaler())
 ])
 
 model = LogisticRegression(
-    penalty='elasticnet', solver='saga', max_iter=15000,
-    class_weight='balanced', l1_ratio=0.2
+    solver='saga',
+    max_iter=15000,
+    class_weight='balanced'
 )
 
 full_pipeline = Pipeline([
@@ -41,29 +54,47 @@ full_pipeline = Pipeline([
     ('model', model)
 ])
 
-X = preprocessing_pipeline.fit_transform(ds.X, y_encoded)
+cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
-cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
+param_distributions = {
+    'prep__MeanExpressionReductor__percentile': uniform(10, 10),
+    'prep__AnovaReductor__percentile': uniform(70, 10),
+    'model__C': loguniform(0.1, 10.0),
 
-param_grid = {
-    'model__l1_ratio': [0.25, 0.2, 0.15],
-    'prep__MeanExpressionReductor__mean_threshold': [3, 3.5, 4]
+    'model__l1_ratio': uniform(0.1, 0.8),
+    'model__tol': loguniform(1e-5, 1e-3),
 }
 
-
-grid = GridSearchCV(
+random_search = RandomizedSearchCV(
     estimator=full_pipeline,
-    param_grid=param_grid,
-    scoring='f1',
+    param_distributions=param_distributions,
+    n_iter=50,
+    scoring='roc_auc',
     cv=cv,
     n_jobs=-1,
     verbose=1,
-    refit=True
+    refit=True,
+    random_state=42,
+    error_score='raise'
 )
 
-grid.fit(X_train, y_train)
-print("Najlepsze parametry:", grid.best_params_)
-print("Najlepszy wynik CV (f1):", grid.best_score_)
+random_search.fit(X_train, y_train)
 
-#Najlepsze parametry: {'model__l1_ratio': 0.1, 'prep__MeanExpressionReductor__mean_threshold': 3, 'prep__PValueReductor__p_threshold': 0.1, 'prep__VarianceExpressionReductor__v_threshold': 0.2}
-#Najlepszy wynik CV (f1): 0.6571428571428571
+print("Najlepsze parametry:", random_search.best_params_)
+print("Najlepszy wynik CV (f1):", random_search.best_score_)
+
+print("Najlepsze parametry:", random_search.best_params_)
+print("Najlepszy wynik na valid (AUC):", random_search.best_score_)
+
+y_test_pred  = random_search.predict(X_test)
+y_test_proba = random_search.predict_proba(X_test)[:, 1]
+
+print("\n=== TEST ===")
+print(classification_report(y_test, y_test_pred, target_names=le.classes_))
+print("Balanced accuracy:", balanced_accuracy_score(y_test, y_test_pred))
+print("Confusion matrix:\n", confusion_matrix(y_test, y_test_pred))
+
+"""
+Najlepsze parametry: {'model__C': np.float64(1.2172847081122433), 'model__l1_ratio': np.float64(0.21273937997981013), 'model__tol': np.float64(0.0004021554526690286), 'prep__AnovaReductor__percentile': np.float64(70.74550643679771), 'prep__MeanExpressionReductor__percentile': np.float64(19.86886936600517)}
+Najlepszy wynik na valid (AUC): 0.8116909253537161
+"""

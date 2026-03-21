@@ -52,7 +52,7 @@ X_train, X_test, X_valid, y_train, y_test, y_valid = ds.get_train_test_valid_spl
 print("original X shape: ", X_train.shape)
 preprocessing_pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
-    ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
+    ('HighVarianceReductor', AnovaReductor(percentile=95)),
     ('mean_expr', MeanExpressionReductor(percentile=25)),
     #('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
     ('scaler',                     StandardScaler()),

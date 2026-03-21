@@ -1,4 +1,5 @@
-from sklearn.metrics import classification_report, confusion_matrix, f1_score, balanced_accuracy_score
+from sklearn.metrics import (classification_report, confusion_matrix,
+                             f1_score, balanced_accuracy_score)
 from sklearn.linear_model import LogisticRegression
 import shap
 
@@ -11,31 +12,32 @@ meta_path = r"../../data/samples_pancreatic.xlsx"
 data_path = r"../../data/counts_pancreatic.csv"
 
 ds = load_dataset(data_path, meta_path, label_col="Group")
-print(ds.X.shape)
 y_containing_disease = ds.y
 
 # combine healthy and disease into one class
 ds.y = ds.y.replace({DISEASE: HEALTHY})
+
+print(ds.y.value_counts())
 
 le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
 X_train, X_test, X_valid, y_train, y_test, y_valid = (
     ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25))
+sex_numeric = ds.sex.map({"F": 0, "M": 1})
+#Najlepsze parametry: {'model__C': np.float64(1.2172847081122433), 'model__l1_ratio': np.float64(0.21273937997981013), 'model__tol': np.float64(0.0004021554526690286), 'prep__AnovaReductor__percentile': np.float64(70.74550643679771), 'prep__MeanExpressionReductor__percentile': np.float64(19.86886936600517)}
 
-model = LogisticRegression(
-    solver='saga', max_iter=15000,
-    class_weight='balanced', l1_ratio=0.1, C=2, fit_intercept=True
-)
+model = LogisticRegression(max_iter=1500, class_weight='balanced',  fit_intercept=True)
 
 print("original X shape: ", X_train.shape)
 pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
-    ('HighVarianceReductor', HighVarianceReductor(percentile=95)),
-    ('mean_expr', MeanExpressionReductor(percentile=25)),
+    ('AnovaReductor', AnovaReductor(percentile=70)),
+    ('MeanExpressionReductor', MeanExpressionReductor(percentile=10)),
     ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
-    ('scaler',                     StandardScaler()),
-    ('model',                      model),
+    ('SexBiasReductor',  CovariatesBiasReductor(covariate=sex_numeric)),
+    ('scaler', StandardScaler()),
+    ('model',model),
 ])
 
 pipeline.fit(X_train, y_train)
@@ -48,6 +50,7 @@ y_pred  = (y_proba >= optimal_threshold).astype(int)
 
 show_report(y_pred, y_test, ds, le)
 plot_roc_curve(y_proba, y_test, "logistic regression")
+plot_pr_curve(y_proba, y_test, "logistic regression")
 
 preproc = Pipeline(pipeline.steps[:-1])
 feature_names   = preproc.get_feature_names_out()
