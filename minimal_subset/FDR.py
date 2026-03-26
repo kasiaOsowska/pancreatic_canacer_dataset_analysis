@@ -23,7 +23,7 @@ le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
 X_train, X_test, X_valid, y_train, y_test, y_valid = (
-    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25))
+    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.2, valid_size=0.2))
 sex_numeric = ds.sex.map({"F": 0, "M": 1})
 #Najlepsze parametry: {'model__C': np.float64(1.2172847081122433), 'model__l1_ratio': np.float64(0.21273937997981013), 'model__tol': np.float64(0.0004021554526690286), 'prep__AnovaReductor__percentile': np.float64(70.74550643679771), 'prep__MeanExpressionReductor__percentile': np.float64(19.86886936600517)}
 

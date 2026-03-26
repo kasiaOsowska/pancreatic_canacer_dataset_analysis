@@ -29,7 +29,7 @@ le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
 X_train, X_test, X_valid, y_train, y_test, y_valid = (
-    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25))
+    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.2, valid_size=0.2))
 sex_numeric = ds.sex.map({"F": 0, "M": 1})
 class_counts = Counter(y_train)
 scale_pos_weight = class_counts[0] / class_counts[1]
