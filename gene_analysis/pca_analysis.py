@@ -19,7 +19,7 @@ X_train, X_test, X_valid, y_train, y_test, y_valid = (
 sex_numeric = ds.sex.map({"F": 0, "M": 1})
 
 num_pca_components = 4
-plot_pca(ds.X, y_encoded, num_pca_components, le)
+plot_pca(X_test, y_test, num_pca_components, le)
 
 pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),

@@ -1,15 +1,12 @@
 from sklearn.metrics import classification_report, balanced_accuracy_score, confusion_matrix
 from sklearn.model_selection import (
-    train_test_split,
-    StratifiedKFold,
+    PredefinedSplit,
     RandomizedSearchCV
 )
 from sklearn.linear_model import LogisticRegression
 from scipy.stats import uniform, loguniform
 import numpy as np
-from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
-from sklearn.model_selection import RandomizedSearchCV
-from scipy.stats import randint, uniform
+from scipy.stats import randint
 from utilz.Dataset import load_dataset
 from utilz.preprocessing_utilz import *
 from utilz.helpers import *
@@ -27,11 +24,19 @@ le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
 
-X_train, X_test, y_train, y_test = (
-    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25, return_valid=False))
+X_train, X_test, X_valid, y_train, y_test, y_valid = (
+    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25))
 sex_numeric = ds.sex.map({"F": 0, "M": 1})
 
+# Combine train + valid for RandomizedSearchCV with PredefinedSplit
+X_search = pd.concat([X_train, X_valid])
+y_search = pd.concat([y_train, y_valid])
+# -1 = train (never in validation fold), 0 = validation fold
+split_index = np.concatenate([np.full(len(X_train), -1), np.full(len(X_valid), 0)])
+cv = PredefinedSplit(split_index)
+
 print("X_train shape:", X_train.shape)
+print("X_valid shape:", X_valid.shape)
 print("X_test shape: ", X_test.shape)
 
 preprocessing_pipeline = Pipeline([
@@ -54,14 +59,13 @@ full_pipeline = Pipeline([
     ('model', model)
 ])
 
-cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-
 param_distributions = {
-    'prep__MeanExpressionReductor__percentile': uniform(10, 10),
-    'prep__AnovaReductor__percentile': uniform(70, 10),
-    'model__C': loguniform(0.1, 10.0),
-
-    'model__l1_ratio': uniform(0.1, 0.8),
+    'prep__AnovaReductor__percentile': uniform(50, 40),           # 50-90
+    'prep__MeanExpressionReductor__percentile': uniform(5, 25),   # 5-30
+    'prep__AgeBiasReductor__beta_thresh': uniform(0, 0.026),   # 0.002-0.028 (|β| max ~0.029, mean ~0.003)
+    'prep__SexBiasReductor__beta_thresh': uniform(0, 0.35),    # 0.05-0.40 (|β| mean ~0.09, most genes < 0.4)
+    'model__C': loguniform(0.01, 100.0),
+    'model__l1_ratio': uniform(0, 1),
     'model__tol': loguniform(1e-5, 1e-3),
 }
 
@@ -78,10 +82,7 @@ random_search = RandomizedSearchCV(
     error_score='raise'
 )
 
-random_search.fit(X_train, y_train)
-
-print("Najlepsze parametry:", random_search.best_params_)
-print("Najlepszy wynik CV (f1):", random_search.best_score_)
+random_search.fit(X_search, y_search)
 
 print("Najlepsze parametry:", random_search.best_params_)
 print("Najlepszy wynik na valid (AUC):", random_search.best_score_)
@@ -95,6 +96,6 @@ print("Balanced accuracy:", balanced_accuracy_score(y_test, y_test_pred))
 print("Confusion matrix:\n", confusion_matrix(y_test, y_test_pred))
 
 """
-Najlepsze parametry: {'model__C': np.float64(1.2172847081122433), 'model__l1_ratio': np.float64(0.21273937997981013), 'model__tol': np.float64(0.0004021554526690286), 'prep__AnovaReductor__percentile': np.float64(70.74550643679771), 'prep__MeanExpressionReductor__percentile': np.float64(19.86886936600517)}
-Najlepszy wynik na valid (AUC): 0.8116909253537161
+Najlepsze parametry: {'model__C': 0.012637946338082878, 'model__l1_ratio': 0.10789142699330445, 'model__tol': 1.1557352816269867e-05, 'prep__AgeBiasReductor__beta_thresh': 0.01654667069285829, 'prep__AnovaReductor__percentile': 62.57423924305307, 'prep__MeanExpressionReductor__percentile': 17.71426727911757, 'prep__SexBiasReductor__beta_thresh': 0.31764826587413253}
+Najlepszy wynik na valid (AUC): 0.8895946763460376
 """

@@ -42,7 +42,7 @@ def test_covariate_bias_reductor():
         "Baseline": (Pipeline([
             ('const', ConstantExpressionReductor()),
             ('scaler', MinMaxScaler()),
-            ('model', Lasso(alpha = 0.11, max_iter=10000, fit_intercept=True)
+            ('model', LinearRegression()
     )
         ]), X_tr, X_te),
         f"Debiased ({n_after})": (Pipeline([

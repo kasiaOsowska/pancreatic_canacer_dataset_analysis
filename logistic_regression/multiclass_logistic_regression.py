@@ -44,7 +44,7 @@ pipeline = Pipeline([
 ])
 
 pipeline.fit(X_train, y_train)
-y_pred = pipeline.predict(X_test)  # ← bezpośrednio klasy, nie progi
+y_pred = pipeline.predict(X_test)
 
 print("F1 (weighted):", f1_score(y_test, y_pred, average="weighted"))
 print("Balanced accuracy:", balanced_accuracy_score(y_test, y_pred))

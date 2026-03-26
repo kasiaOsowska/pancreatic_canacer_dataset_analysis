@@ -27,13 +27,14 @@ X_train, X_test, X_valid, y_train, y_test, y_valid = (
 sex_numeric = ds.sex.map({"F": 0, "M": 1})
 #Najlepsze parametry: {'model__C': np.float64(1.2172847081122433), 'model__l1_ratio': np.float64(0.21273937997981013), 'model__tol': np.float64(0.0004021554526690286), 'prep__AnovaReductor__percentile': np.float64(70.74550643679771), 'prep__MeanExpressionReductor__percentile': np.float64(19.86886936600517)}
 
-model = LogisticRegression(max_iter=1500, class_weight='balanced',  fit_intercept=True)
+model = LogisticRegression(max_iter=1500, class_weight='balanced',  fit_intercept=True, l1_ratio=0.2, solver='saga')
 
 print("original X shape: ", X_train.shape)
 pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
+    ('MeanExpressionReductor', MeanExpressionReductor(percentile=50)),
     ('AnovaFdrReductor', AnovaFdrReductor()),
-    ('MeanExpressionReductor', MeanExpressionReductor(percentile=10)),
+    ('AnovaReductor', AnovaReductor(percentile=98)),
     ('AgeBiasReductor', CovariatesBiasReductor(covariate=ds.age)),
     ('SexBiasReductor', CovariatesBiasReductor(covariate=sex_numeric)),
     ('scaler', StandardScaler()),
@@ -74,3 +75,7 @@ print("F1 (weighted):", f1_score(y_test, y_pred, average="weighted"))
 print("Balanced accuracy:", balanced_accuracy_score(y_test, y_pred))
 print("Confusion matrix:\n", confusion_matrix(y_test, y_pred, labels=range(len(le.classes_))))
 print("Classification report:\n", classification_report(y_test, y_pred, target_names=le.classes_))
+
+pd.Series(pipeline.named_steps['model'].coef_[0], index=feature_names) \
+    .sort_values(ascending=False) \
+    .to_csv("feature_weights.csv", header=["weight"])
