@@ -123,10 +123,6 @@ class CovariatesBiasReductor(BaseEstimator, TransformerMixin):
 
         p_values = np.array(p_values)
         beta_values = np.array(beta_values)
-        print(np.mean(beta_values))
-        print(np.std(beta_values))
-        print(min(beta_values)
-              , max(beta_values))
 
         p_values = np.nan_to_num(p_values, nan=1.0)
         _, p_adj, _, _ = multipletests(p_values, method="fdr_bh")

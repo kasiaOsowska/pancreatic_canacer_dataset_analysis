@@ -30,7 +30,7 @@ class Dataset:
         X = X.loc[df.index]
         y = y.loc[df.index]
 
-        strata = df[["y", "sex", "age_group", "stage"]].astype(str).agg("_".join, axis=1)
+        strata = df[["y", "stage", "sex", "age_group"]].astype(str).agg("_".join, axis=1)
 
         counts = strata.value_counts()
         valid = counts[counts >= 2].index
@@ -55,7 +55,6 @@ class Dataset:
             stratify=strata
         )
 
-        # Append singleton-strata samples to train (can't be stratified)
         if len(X_rem) > 0:
             print(f"[INFO] {len(X_rem)} samples with unique strata added to train set")
             X_train = pd.concat([X_train, X_rem])
@@ -75,7 +74,6 @@ class Dataset:
             stratify=strata_temp
         )
 
-        # Append second-round singletons to train as well
         if len(X_rem2) > 0:
             print(f"[INFO] {len(X_rem2)} samples with unique strata (2nd split) added to train set")
             X_train = pd.concat([X_train, X_rem2])

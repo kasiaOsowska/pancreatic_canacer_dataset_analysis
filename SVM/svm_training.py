@@ -24,7 +24,7 @@ le = LabelEncoder()
 y_encoded = pd.Series(le.fit_transform(ds.y), index=ds.y.index)
 
 X_train, X_test, X_valid, y_train, y_test, y_valid = (
-    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.25, valid_size=0.25))
+    ds.get_train_test_valid_split(ds.X, y_encoded, test_size=0.2, valid_size=0.2))
 sex_numeric = ds.sex.map({"F": 0, "M": 1})
 #{'AnovaReductor__percentile': 70, 'MeanExpressionReductor__percentile': 30, 'model__C': np.float64(8.585306974480472), 'model__class_weight': 'balanced', 'model__gamma': np.float64(0.000132965214572995), 'model__kernel': 'rbf'}
 
@@ -40,8 +40,8 @@ model = SVC(
 print("original X shape: ", X_train.shape)
 pipeline = Pipeline([
     ('ConstantExpressionReductor', ConstantExpressionReductor()),
-    ('AnovaReductor', AnovaReductor(percentile=70)),
-    ('MeanExpressionReductor', MeanExpressionReductor(percentile=30)),
+    ('AnovaReductor', AnovaReductor(percentile=60)),
+    ('MeanExpressionReductor', MeanExpressionReductor(percentile=20)),
     ('AgeBiasReductor',  CovariatesBiasReductor(covariate=ds.age)),
     ('SexBiasReductor',  CovariatesBiasReductor(covariate=sex_numeric)),
     ('scaler', StandardScaler()),
@@ -68,15 +68,3 @@ preproc = Pipeline(pipeline.steps[:-1])
 feature_names   = preproc.get_feature_names_out()
 X_train_trans   = pd.DataFrame(preproc.transform(X_train), columns=feature_names)
 X_test_trans    = pd.DataFrame(preproc.transform(X_test),  columns=feature_names)
-
-background = shap.kmeans(X_train_trans, 50)
-
-explainer = shap.KernelExplainer(
-    pipeline.named_steps['model'].predict_proba,
-    background
-)
-shap_values = explainer.shap_values(X_test_trans)
-pd.DataFrame(shap_values[1], columns=feature_names) \
-    .mean() \
-    .sort_values(ascending=False) \
-    .to_csv("shap_values.csv", header=["weight"])
