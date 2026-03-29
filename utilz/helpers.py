@@ -4,7 +4,6 @@ from sklearn.pipeline import Pipeline
 import seaborn as sns
 import numpy as np
 from sklearn.metrics import roc_auc_score, roc_curve
-from sklearn.preprocessing import LabelEncoder
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from matplotlib import pyplot as plt
