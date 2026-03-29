@@ -73,7 +73,7 @@ class AnovaReductor(BaseEstimator, TransformerMixin):
     def fit(self, X, y=None):
         f_scores, _ = f_classif(X, y)
         threshold = np.percentile(f_scores, self.percentile)
-        self.selected_genes_ = X.columns[f_scores> threshold]
+        self.selected_genes_ = X.columns[f_scores>threshold]
         return self
 
     def transform(self, X):

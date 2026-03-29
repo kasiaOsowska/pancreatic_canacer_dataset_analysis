@@ -5,6 +5,8 @@ import seaborn as sns
 import numpy as np
 from sklearn.metrics import roc_auc_score, roc_curve
 from sklearn.preprocessing import LabelEncoder
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from matplotlib import pyplot as plt
 import pandas as pd
 
@@ -45,34 +47,48 @@ def show_report(y_pred, y_test_encoded, dataset, le):
     return
 
 
-def plot_pca(X, y_encoded, n_compontns, le):
+from itertools import combinations
+import math
+
+def plot_pca(X, y_encoded, n_components, le):
     viz_pipe = Pipeline([
         ("scaler", StandardScaler(with_mean=True, with_std=True)),
-        ("pca", PCA(n_components=n_compontns, svd_solver="full", random_state=42))
+        ("pca", PCA(n_components=n_components, svd_solver="full", random_state=42))
     ])
 
-    X_train_pca = viz_pipe.fit_transform(X)
+    X_pca = viz_pipe.fit_transform(X)
     evr = viz_pipe.named_steps["pca"].explained_variance_ratio_
     classes = le.classes_
-    y_test_int = y_encoded.values
+    y_int = y_encoded.values
 
-    plt.figure(figsize=(7, 6))
-    for i in range(n_compontns):
-        for j in range(i + 1, n_compontns):
-            for k, cls in enumerate(classes):
-                mask = (y_test_int == k)
-                plt.scatter(
-                    X_train_pca[mask, i], X_train_pca[mask, j],
-                    label=str(cls), alpha=0.3, s=45
-                )
+    pairs = list(combinations(range(n_components), 2))
+    n_pairs = len(pairs)
+    n_cols = min(3, n_pairs)
+    n_rows = math.ceil(n_pairs / n_cols)
 
-            plt.xlabel(f"PC{i} ({evr[i] * 100:.1f}% wariancji)")
-            plt.ylabel(f"PC{j} ({evr[j] * 100:.1f}% wariancji)")
-            plt.title("PCA")
-            plt.legend(title="Klasa")
-            plt.grid(True, linestyle="--", alpha=0.3)
-            plt.tight_layout()
-            plt.show()
+    fig, axes = plt.subplots(n_rows, n_cols,
+                             figsize=(5 * n_cols, 4.5 * n_rows),
+                             squeeze=False)
+
+    for idx, (i, j) in enumerate(pairs):
+        ax = axes[idx // n_cols][idx % n_cols]
+        for k, cls in enumerate(classes):
+            mask = (y_int == k)
+            ax.scatter(
+                X_pca[mask, i], X_pca[mask, j],
+                label=str(cls), alpha=0.5, s=45
+            )
+        ax.set_xlabel(f"PC{i+1} ({evr[i]*100:.1f}% wariancji)")
+        ax.set_ylabel(f"PC{j+1} ({evr[j]*100:.1f}% wariancji)")
+        ax.set_title(f"PC{i+1} vs PC{j+1}")
+        ax.legend(title="Klasa", fontsize=8)
+        ax.grid(True, linestyle="--", alpha=0.3)
+    for idx in range(n_pairs, n_rows * n_cols):
+        axes[idx // n_cols][idx % n_cols].set_visible(False)
+
+    fig.suptitle("PCA – wszystkie pary składowych", fontsize=14, y=1.01)
+    plt.tight_layout()
+    plt.show()
 
 def plot_scatter_boxplot(X, y, gene_name):
     unique_groups = np.unique(y)
@@ -152,3 +168,68 @@ def plot_pr_curve(y_proba, y_true, title):
     plt.legend()
     plt.grid(alpha=0.1)
     plt.show()
+
+
+def plot_split_balance(splits: dict):
+    """
+    splits = {
+        'Train': (y_train, sex_train, age_train, stage_train),
+        'Test':  (y_test,  sex_test,  age_test,  stage_test),
+        'Valid': (y_valid, sex_valid, age_valid,  stage_valid),
+    }
+    """
+    COLORS = {'Train': '#6366f1', 'Test': '#22d3ee', 'Valid': '#f59e0b'}
+    names = list(splits.keys())
+
+    all_y   = splits[names[0]][0]
+    class_vals = sorted(all_y.unique())
+    sex_vals   = sorted(splits[names[0]][1].unique())
+    stage_all = pd.concat([splits[s][3].dropna() for s in names])
+    stage_vals = sorted(stage_all.unique())
+
+    class_counts = {s: splits[s][0].value_counts(normalize=True) for s in names}
+    sex_counts   = {s: splits[s][1].value_counts(normalize=True) for s in names}
+    age_data     = {s: splits[s][2].values for s in names}
+    stage_counts = {s: splits[s][3].dropna().value_counts(normalize=True) for s in names}
+
+    fig = make_subplots(
+        rows=1, cols=4,
+        subplot_titles=["Class distribution", "Sex distribution", "Age distribution", "Stage distribution"],
+        horizontal_spacing=0.08,
+    )
+
+    for s in names:
+        fig.add_trace(go.Bar(
+            name=s, x=class_vals,
+            y=[class_counts[s].get(c, 0) for c in class_vals],
+            marker_color=COLORS[s], showlegend=True,
+        ), row=1, col=1)
+
+        fig.add_trace(go.Bar(
+            name=s, x=sex_vals,
+            y=[sex_counts[s].get(sv, 0) for sv in sex_vals],
+            marker_color=COLORS[s], showlegend=False,
+        ), row=1, col=2)
+
+        fig.add_trace(go.Box(
+            name=s, y=age_data[s],
+            marker_color=COLORS[s], boxmean=True, showlegend=False,
+        ), row=1, col=3)
+
+        fig.add_trace(go.Bar(
+            name=s, x=stage_vals,
+            y=[stage_counts[s].get(sv, 0) for sv in stage_vals],
+            marker_color=COLORS[s], showlegend=False,
+        ), row=1, col=4)
+
+    fig.update_layout(
+        barmode='group',
+        title={"text": "Train / Test / Valid split balance"},
+        legend=dict(orientation='h', yanchor='bottom', y=1.08, xanchor='center', x=0.5),
+    )
+    fig.update_yaxes(title_text="Proportion", tickformat=".0%", row=1, col=1)
+    fig.update_yaxes(title_text="Proportion", tickformat=".0%", row=1, col=2)
+    fig.update_yaxes(title_text="Age (years)", row=1, col=3)
+    fig.update_yaxes(title_text="Proportion", tickformat=".0%", row=1, col=4)
+
+    fig.show()
