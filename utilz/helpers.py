@@ -232,3 +232,62 @@ def plot_split_balance(splits: dict):
     fig.update_yaxes(title_text="Proportion", tickformat=".0%", row=1, col=4)
 
     fig.show()
+
+
+
+def plot_group_overview(splits: dict, colors: dict = None, title: str = None):
+
+    names = list(splits.keys())
+
+    if colors is None:
+        _palette = pc.qualitative.Plotly
+        colors = {s: _palette[i % len(_palette)] for i, s in enumerate(names)}
+
+    if title is None:
+        title = " / ".join(names) + " – group overview"
+    all_sex = pd.concat([splits[s][1] for s in names])
+    sex_vals   = sorted(all_sex.unique())
+
+    sex_counts   = {s: splits[s][1].value_counts(normalize=True) for s in names}  # procenty
+    sex_raw      = {s: splits[s][1].value_counts()               for s in names}  # liczby do etykiet
+    age_data     = {s: splits[s][2].values                       for s in names}
+
+    fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=["Sex distribution", "Age distribution"],
+        horizontal_spacing=0.10,
+    )
+
+    for s in names:
+        color = colors[s]
+        # --- Sex distribution: % na osi Y + "n=X (Y%)" na słupku ---
+        y_sex_pct = [sex_counts[s].get(sv, 0) for sv in sex_vals]
+        y_sex_cnt = [sex_raw[s].get(sv, 0)    for sv in sex_vals]
+        labels    = [f"n={cnt}<br>({pct:.0%})"
+                     for cnt, pct in zip(y_sex_cnt, y_sex_pct)]
+        fig.add_trace(go.Bar(
+            name=s, x=sex_vals,
+            y=y_sex_pct,
+            text=labels,
+            textposition='outside',
+            marker_color=color,
+            showlegend=False,
+        ), row=1, col=1)
+
+        # --- Age distribution: boxplot ---
+        fig.add_trace(go.Box(
+            name=s, y=age_data[s],
+            marker_color=color,
+            boxmean=True,
+            showlegend=True,
+        ), row=1, col=2)
+
+    fig.update_layout(
+        barmode='group',
+        title={"text": title},
+        legend=dict(orientation='h', yanchor='bottom', y=1.08, xanchor='center', x=0.5),
+    )
+    fig.update_yaxes(title_text="Proportion",  tickformat=".0%", row=1, col=1)
+    fig.update_yaxes(title_text="Age (years)", row=1, col=2)
+
+    fig.show()
