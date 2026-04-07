@@ -85,6 +85,42 @@ class AnovaReductor(BaseEstimator, TransformerMixin):
         return np.asarray(self.selected_genes_, dtype=object)
 
 
+class WithinGroupVarianceReductor(BaseEstimator, TransformerMixin):
+    def __init__(self, percentile=20):
+        self.percentile = percentile
+        self.selected_genes_ = None
+
+    def fit(self, X: pd.DataFrame, y=None):
+
+        y_s = pd.Series(y, index=X.index) if not isinstance(y, pd.Series) else y.reindex(X.index)
+        classes = y_s.unique()
+
+        # pooled within-group variance per gene
+        N = len(X)
+        K = len(classes)
+        wgv = pd.Series(0.0, index=X.columns)
+
+        for cls in classes:
+            mask = y_s == cls
+            n_k = mask.sum()
+            if n_k > 1:
+                wgv += (n_k - 1) * X.loc[mask].var(ddof=1)
+
+        wgv /= (N - K)
+
+        threshold = np.percentile(wgv, self.percentile)
+        self.selected_genes_ = wgv[wgv < threshold].index
+        return self
+
+    def transform(self, X: pd.DataFrame):
+        X = X[self.selected_genes_]
+        print("data shape after WithinGroupVarianceReductor: ", X.shape)
+        return X
+
+    def get_feature_names_out(self, input_features=None):
+        return np.asarray(self.selected_genes_, dtype=object)
+
+
 class CovariatesBiasReductor(BaseEstimator, TransformerMixin):
 
     def __init__(self, covariate: pd.Series, p_thresh: float = 0.05, beta_thresh: float = None):

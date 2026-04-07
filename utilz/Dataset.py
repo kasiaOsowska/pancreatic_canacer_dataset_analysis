@@ -1,7 +1,9 @@
 import os
+
+import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from utilz.constans import CANCER
+from sklearn.model_selection import train_test_split, StratifiedKFold
+from utilz.constans import CANCER, HEALTHY, DISEASE
 
 
 class Dataset:
@@ -45,7 +47,7 @@ class Dataset:
 
         return X_stratifiable, y_stratifiable, strata_stratifiable, X_remainder, y_remainder
 
-    def get_train_test_valid_split(self, X, y, test_size=0.25, valid_size=0.25, random_state=2137, return_valid=True):
+    def get_train_test_valid_split(self, X, y, test_size=0.25, valid_size=0, random_state=2137, return_valid=True):
         X_strat, y_strat, strata, X_rem, y_rem = self._get_strata(X, y)
 
         X_train, X_temp, y_train, y_temp, strata_train, strata_temp = train_test_split(
@@ -86,6 +88,28 @@ class Dataset:
 
         return X_train, X_test, X_valid, y_train, y_test, y_valid
 
+    def get_stratified_kfold(self, X, y, n_splits=5, random_state=2137):
+        X_strat, y_strat, strata, X_rem, y_rem = self._get_strata(X, y)
+
+        skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=random_state)
+        folds = list(skf.split(X_strat, strata))
+        global_idx = X.index.get_indexer(X_strat.index)
+        rem_idx = X.index.get_indexer(X_rem.index) if len(X_rem) > 0 else np.array([])
+
+        all_folds = []
+        for train_strat, test_strat in folds:
+            train_global = global_idx[train_strat]
+            test_global = global_idx[test_strat]
+            train_global = np.concatenate([train_global, rem_idx])
+            train_global = np.sort(train_global)
+            test_global = np.sort(test_global)
+
+            all_folds.append((train_global, test_global))
+
+        print(f"[INFO] Generated {len(all_folds)} folds. Remainder ({len(rem_idx)}) "
+              f"added to training set in each fold.")
+        return all_folds
+
 
 def load_dataset(path_csv, path_xlsx, label_col=None, separate_stage_iv = False):
     df_features = pd.read_csv(path_csv, sep=";", decimal=",", index_col=0)
@@ -103,6 +127,15 @@ def load_dataset(path_csv, path_xlsx, label_col=None, separate_stage_iv = False)
 
     if separate_stage_iv:
         y = y.mask((y == CANCER) & (meta["Stage"] == "IV"), "cancer_IV")
+
+    # drop inconsistent sample Vumc-ChronPan-29-TR1045 with disease=HEALTHY but stage IV
+    mask = ((y == HEALTHY) | (y == DISEASE)) & (meta["Stage"] == "IV")
+    print("Dropping inconsistent sample:")
+    print(meta.loc[mask])
+
+    df_features = df_features.loc[~mask]
+    meta = meta.loc[~mask]
+    y = y.loc[~mask]
 
     return Dataset(X=df_features, meta=meta, y=y)
 
