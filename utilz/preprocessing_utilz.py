@@ -6,7 +6,7 @@ from statsmodels.stats.multitest import multipletests
 from sklearn.feature_selection import f_classif
 
 class AnovaFdrReductor(BaseEstimator, TransformerMixin):
-    def __init__(self, alpha=0.05):
+    def __init__(self, alpha=0.001):
         self.alpha = alpha
         self.selected_genes_ = None
 
@@ -176,3 +176,59 @@ class CovariatesBiasReductor(BaseEstimator, TransformerMixin):
 
     def get_feature_names_out(self, input_features=None):
         return np.asarray(self.selected_genes_, dtype=object)
+
+
+class CovariatesResidualTransformer(BaseEstimator, TransformerMixin):
+    """
+    Dla kazdego genu osobno dopasowuje regresje liniowa:
+        expression ~ covariate
+    i zastepuje wartosci ekspresji residuami:
+        residual = observed_expression - predicted_expression
+
+    Nie usuwa zadnych genow — zachowuje pelny zestaw cech.
+    Parametry z fitu (slope, intercept) sa zapamietane i uzywane przy transform,
+    dzieki czemu zbior testowy jest korygowany modelami wytrenowanymi na trainie.
+    """
+
+    def __init__(self, covariate: pd.Series):
+        self.covariate = covariate
+        self.coef_ = None       # slope per gene,     shape (n_genes,)
+        self.intercept_ = None  # intercept per gene, shape (n_genes,)
+        self.genes_ = None
+
+    def fit(self, X: pd.DataFrame, y=None):
+        self.genes_ = list(X.columns)
+        cov = pd.Series(self.covariate).reindex(X.index).astype(float)
+
+        # probki z brakujaca wartoscia kowariaty sa pomijane przy ficie
+        valid_idx = cov.dropna().index
+        cov_vals  = cov.loc[valid_idx].values  # (n,)
+        X_valid   = X.loc[valid_idx].values    # (n, p)
+
+        # X_design = [1, covariate] -> OLS dla wszystkich genow naraz
+        X_design = np.column_stack([np.ones(len(cov_vals)), cov_vals])  # (n, 2)
+        coeffs, _, _, _ = np.linalg.lstsq(X_design, X_valid, rcond=None)  # (2, p)
+
+        self.intercept_ = coeffs[0]  # (p,)
+        self.coef_      = coeffs[1]  # (p,)
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        cov = pd.Series(self.covariate).reindex(X.index).astype(float)
+        cov_vals = cov.values  # (n,)
+
+        # predicted = intercept + covariate * slope dla kazdej probki i genu
+        cov_filled = np.where(np.isnan(cov_vals), 0.0, cov_vals)
+        predicted  = np.outer(cov_filled, self.coef_) + self.intercept_  # (n, p)
+
+        # tam gdzie kowariata brakuje — nie odejmujemy predykcji
+        missing_mask = np.isnan(cov_vals)
+        predicted[missing_mask] = 0.0
+
+        residuals = X[self.genes_].values - predicted
+        result = pd.DataFrame(residuals, index=X.index, columns=self.genes_)
+        print("data shape after CovariatesResidualTransformer: ", result.shape)
+        return result
+
+    def get_feature_names_out(self, input_features=None):
+        return np.asarray(self.genes_, dtype=object)
