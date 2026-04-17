@@ -5,6 +5,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from statsmodels.stats.multitest import multipletests
 from sklearn.feature_selection import f_classif
 
+
 class AnovaFdrReductor(BaseEstimator, TransformerMixin):
     def __init__(self, alpha=0.001):
         self.alpha = alpha
@@ -79,6 +80,32 @@ class AnovaReductor(BaseEstimator, TransformerMixin):
     def transform(self, X):
         X = X[self.selected_genes_]
         print("data shape after AnovaReductor: ", X.shape)
+        return X
+
+    def get_feature_names_out(self, input_features=None):
+        return np.asarray(self.selected_genes_, dtype=object)
+
+
+class Log2FCReductor(BaseEstimator, TransformerMixin):
+    def __init__(self, min_abs_log2fc=1.0):
+        self.selected_genes_ = None
+        self.min_abs_log2fc = min_abs_log2fc
+
+    def fit(self, X, y=None):
+        group_means = X.groupby(y).mean()
+        class0, class1 = group_means.index
+        mean0 = group_means.loc[class0]
+        mean1 = group_means.loc[class1]
+        log2fc = np.log2((mean1 + 1e-6) / (mean0 + 1e-6))
+        abs_log2fc = np.abs(log2fc)
+        print(abs_log2fc.max())
+        valid_genes = abs_log2fc >= self.min_abs_log2fc
+        self.selected_genes_ = X.columns[valid_genes]
+        return self
+
+    def transform(self, X):
+        X = X[self.selected_genes_]
+        print("data shape after Log2FCReductor: ", X.shape)
         return X
 
     def get_feature_names_out(self, input_features=None):
@@ -180,55 +207,77 @@ class CovariatesBiasReductor(BaseEstimator, TransformerMixin):
 
 class CovariatesResidualTransformer(BaseEstimator, TransformerMixin):
     """
-    Dla kazdego genu osobno dopasowuje regresje liniowa:
-        expression ~ covariate
-    i zastepuje wartosci ekspresji residuami:
-        residual = observed_expression - predicted_expression
+    Dla kazdego genu dopasowuje regresje: expression ~ covariate
+    tylko na zdrowych probkach i zastepuje ekspresje residuami.
 
-    Nie usuwa zadnych genow — zachowuje pelny zestaw cech.
-    Parametry z fitu (slope, intercept) sa zapamietane i uzywane przy transform,
-    dzieki czemu zbior testowy jest korygowany modelami wytrenowanymi na trainie.
+    Parametry
+    ---------
+    covariate : pd.Series
+        Wartosci kowarianty (np. wiek) indeksowane sample-ID.
+    labels : pd.Series, optional
+        Etykiety choroby (0=zdrowy, 1=chory) indeksowane sample-ID.
+        Jesli podane, regresja jest uczona TYLKO na zdrowych (labels==0).
+        Jesli None, regresja jest uczona na wszystkich probkach.
     """
 
-    def __init__(self, covariate: pd.Series):
+    def __init__(self, covariate: pd.Series, labels: pd.Series = None):
         self.covariate = covariate
-        self.coef_ = None       # slope per gene,     shape (n_genes,)
-        self.intercept_ = None  # intercept per gene, shape (n_genes,)
-        self.genes_ = None
+        self.labels = labels
+        self.coef_ = None
+        self.intercept_ = None
+        self.selected_genes_ = None
+
+    def _get_covariate(self, index):
+        cov = self.covariate
+        if not isinstance(cov, pd.Series):
+            cov = pd.Series(cov)
+
+        matched = cov.reindex(index)
+        if matched.notna().sum() > 0:
+            return matched.astype(float)
+
+        print("  [CovariatesResidualTransformer] WARNING: index mismatch, using positional matching")
+        return pd.Series(cov.values[:len(index)], index=index, dtype=float)
 
     def fit(self, X: pd.DataFrame, y=None):
-        self.genes_ = list(X.columns)
-        cov = pd.Series(self.covariate).reindex(X.index).astype(float)
+        self.selected_genes_ = list(X.columns)
+        cov = self._get_covariate(X.index)
 
-        # probki z brakujaca wartoscia kowariaty sa pomijane przy ficie
-        valid_idx = cov.dropna().index
-        cov_vals  = cov.loc[valid_idx].values  # (n,)
-        X_valid   = X.loc[valid_idx].values    # (n, p)
+        # etykiety choroby z __init__, NIE z pipeline'owego y
+        if self.labels is not None:
+            lab = self.labels.reindex(X.index)
+            healthy_idx = lab[lab == 0].index
+        else:
+            healthy_idx = X.index
 
-        # X_design = [1, covariate] -> OLS dla wszystkich genow naraz
-        X_design = np.column_stack([np.ones(len(cov_vals)), cov_vals])  # (n, 2)
-        coeffs, _, _, _ = np.linalg.lstsq(X_design, X_valid, rcond=None)  # (2, p)
+        cov_healthy = cov.loc[healthy_idx].dropna()
+        valid_idx = cov_healthy.index
 
-        self.intercept_ = coeffs[0]  # (p,)
-        self.coef_      = coeffs[1]  # (p,)
+        cov_vals = cov_healthy.values
+        X_valid  = X.loc[valid_idx].values
+
+        X_design = np.column_stack([np.ones(len(cov_vals)), cov_vals])
+        coeffs, _, _, _ = np.linalg.lstsq(X_design, X_valid, rcond=None)
+
+        self.intercept_ = coeffs[0]
+        self.coef_      = coeffs[1]
+
         return self
 
     def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        cov = pd.Series(self.covariate).reindex(X.index).astype(float)
-        cov_vals = cov.values  # (n,)
+        cov = self._get_covariate(X.index)
+        cov_vals = cov.values
 
-        # predicted = intercept + covariate * slope dla kazdej probki i genu
         cov_filled = np.where(np.isnan(cov_vals), 0.0, cov_vals)
-        predicted  = np.outer(cov_filled, self.coef_) + self.intercept_  # (n, p)
+        predicted  = np.outer(cov_filled, self.coef_) + self.intercept_
 
-        # tam gdzie kowariata brakuje — nie odejmujemy predykcji
         missing_mask = np.isnan(cov_vals)
         predicted[missing_mask] = 0.0
 
-        residuals = X[self.genes_].values - predicted
-        result = pd.DataFrame(residuals, index=X.index, columns=self.genes_)
-        print("data shape after CovariatesResidualTransformer: ", result.shape)
+        residuals = X[self.selected_genes_].values - predicted
+        result = pd.DataFrame(residuals, index=X.index, columns=self.selected_genes_)
+        print(f"data shape after CovariatesResidualTransformer: {result.shape}")
         return result
 
     def get_feature_names_out(self, input_features=None):
-        return np.asarray(self.genes_, dtype=object)
+        return np.asarray(self.selected_genes_, dtype=object)
