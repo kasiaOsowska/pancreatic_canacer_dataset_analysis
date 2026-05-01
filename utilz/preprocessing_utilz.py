@@ -210,16 +210,7 @@ class CovariatesResidualTransformer(BaseEstimator, TransformerMixin):
     Dla kazdego genu dopasowuje regresje: expression ~ covariate
     tylko na zdrowych probkach i zastepuje ekspresje residuami.
 
-    Parametry
-    ---------
-    covariate : pd.Series
-        Wartosci kowarianty (np. wiek) indeksowane sample-ID.
-    labels : pd.Series, optional
-        Etykiety choroby (0=zdrowy, 1=chory) indeksowane sample-ID.
-        Jesli podane, regresja jest uczona TYLKO na zdrowych (labels==0).
-        Jesli None, regresja jest uczona na wszystkich probkach.
     """
-
     def __init__(self, covariate: pd.Series, labels: pd.Series = None):
         self.covariate = covariate
         self.labels = labels
@@ -243,7 +234,6 @@ class CovariatesResidualTransformer(BaseEstimator, TransformerMixin):
         self.selected_genes_ = list(X.columns)
         cov = self._get_covariate(X.index)
 
-        # etykiety choroby z __init__, NIE z pipeline'owego y
         if self.labels is not None:
             lab = self.labels.reindex(X.index)
             healthy_idx = lab[lab == 0].index
