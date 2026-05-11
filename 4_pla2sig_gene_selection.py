@@ -29,7 +29,7 @@ from utilz.preprocessing_utilz import (
 meta_path = r"../data/samples_pancreatic.xlsx"
 data_path = r"../data/counts_pancreatic.csv"
 
-HOLDOUT_TEST_SIZE = 0.2
+HOLDOUT_TEST_SIZE = 0.4
 BASE_SEED         = 2137
 LOG2FC_THRESHOLD  = np.log2(1.2)
 DEG_PVAL          = 0.05
@@ -111,15 +111,11 @@ def main():
     cov = build_covariates(ds.meta)
     deg_pipe = Pipeline([
         ('const',  ConstantExpressionReductor()),
-        ('multi_resid', MultiCovariateResidualBootstrapTransformer(
-            covariates=cov, labels=y_train,
-            n_bootstrap=100, fdr_alpha=0.1, min_r2=0.05, cv_threshold_pct=40.0,
-        )),
         ('log2fc', Log2FCReductor(min_abs_log2fc=LOG2FC_THRESHOLD)),
         ('pval',   MannWhitneyReductor(alpha=DEG_PVAL)),
     ])
     X_tr_deg_df = deg_pipe.fit_transform(X_tr_raw, y_train)
-    X_te_deg_df = X_te_raw[X_tr_deg_df.columns]
+    X_te_deg_df = deg_pipe.transform(X_te_raw)
     deg_genes = list(X_tr_deg_df.columns)
 
     print("\n=== KROK 2: LASSO ===")
