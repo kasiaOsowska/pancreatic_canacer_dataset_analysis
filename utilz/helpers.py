@@ -8,6 +8,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from matplotlib import pyplot as plt
 import pandas as pd
+from itertools import combinations
+import math
+
 
 from utilz.constans import HEALTHY, DISEASE, CANCER
 
@@ -44,10 +47,6 @@ def show_report(y_pred, y_test_encoded, dataset, le):
                     print("---")
 
     return
-
-
-from itertools import combinations
-import math
 
 def plot_pca(X, y_encoded, n_components, le):
     viz_pipe = Pipeline([
@@ -149,25 +148,6 @@ def plot_roc_curve(X, y, title):
     plt.grid(alpha=0.1)
     plt.show()
 
-from sklearn.metrics import precision_recall_curve, average_precision_score
-
-def plot_pr_curve(y_proba, y_true, title):
-    precision, recall, _ = precision_recall_curve(y_true, y_proba)
-    ap = average_precision_score(y_true, y_proba)
-    baseline = y_true.mean()   # random classifier = % klasy pozytywnej
-    print(f"Average Precision = {ap:.3f}")
-
-    plt.figure(figsize=(6, 6))
-    plt.plot(recall, precision, label=f"PR curve (AP = {ap:.3f})")
-    plt.axhline(baseline, linestyle="--", color="gray",
-                label=f"Random (baseline = {baseline:.3f})")
-    plt.xlabel("Recall (sensitivity)")
-    plt.ylabel("Precision (PPV)")
-    plt.title("Precision-Recall curve for " + title)
-    plt.legend()
-    plt.grid(alpha=0.1)
-    plt.show()
-
 
 def plot_split_balance(splits: dict):
     """
@@ -248,8 +228,8 @@ def plot_group_overview(splits: dict, colors: dict = None, title: str = None):
     all_sex = pd.concat([splits[s][1] for s in names])
     sex_vals   = sorted(all_sex.unique())
 
-    sex_counts   = {s: splits[s][1].value_counts(normalize=True) for s in names}  # procenty
-    sex_raw      = {s: splits[s][1].value_counts()               for s in names}  # liczby do etykiet
+    sex_counts   = {s: splits[s][1].value_counts(normalize=True) for s in names}
+    sex_raw      = {s: splits[s][1].value_counts()               for s in names}
     age_data     = {s: splits[s][2].values                       for s in names}
 
     fig = make_subplots(

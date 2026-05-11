@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
-import statsmodels.api as sm
 from sklearn.base import BaseEstimator, TransformerMixin
 from statsmodels.stats.multitest import multipletests
 from sklearn.feature_selection import f_classif
+from scipy import stats
+
+from utilz.residual_bootstrap import _ResidualBootstrapBase
 
 
 class AnovaFdrReductor(BaseEstimator, TransformerMixin):
@@ -66,41 +68,22 @@ class ConstantExpressionReductor(BaseEstimator, TransformerMixin):
         return np.asarray(self.selected_genes_, dtype=object)
 
 
-class AnovaReductor(BaseEstimator, TransformerMixin):
-    def __init__(self, percentile=95):
-        self.selected_genes_ = None
-        self.percentile = percentile
-
-    def fit(self, X, y=None):
-        f_scores, _ = f_classif(X, y)
-        threshold = np.percentile(f_scores, self.percentile)
-        self.selected_genes_ = X.columns[f_scores>threshold]
-        return self
-
-    def transform(self, X):
-        X = X[self.selected_genes_]
-        print("data shape after AnovaReductor: ", X.shape)
-        return X
-
-    def get_feature_names_out(self, input_features=None):
-        return np.asarray(self.selected_genes_, dtype=object)
-
-
 class Log2FCReductor(BaseEstimator, TransformerMixin):
+
     def __init__(self, min_abs_log2fc=1.0):
-        self.selected_genes_ = None
         self.min_abs_log2fc = min_abs_log2fc
+        self.selected_genes_ = None
+        self.log2fc_ = None
+        self.abs_log2fc_ = None
+        self.classes_ = None
 
     def fit(self, X, y=None):
         group_means = X.groupby(y).mean()
         class0, class1 = group_means.index
-        mean0 = group_means.loc[class0]
-        mean1 = group_means.loc[class1]
-        log2fc = np.log2((mean1 + 1e-6) / (mean0 + 1e-6))
-        abs_log2fc = np.abs(log2fc)
-        print(abs_log2fc.max())
-        valid_genes = abs_log2fc >= self.min_abs_log2fc
-        self.selected_genes_ = X.columns[valid_genes]
+        self.classes_ = (class0, class1)
+        self.log2fc_ = group_means.loc[class1] - group_means.loc[class0]
+        self.abs_log2fc_ = self.log2fc_.abs()
+        self.selected_genes_ = X.columns[self.abs_log2fc_ > self.min_abs_log2fc]
         return self
 
     def transform(self, X):
@@ -112,162 +95,94 @@ class Log2FCReductor(BaseEstimator, TransformerMixin):
         return np.asarray(self.selected_genes_, dtype=object)
 
 
-class WithinGroupVarianceReductor(BaseEstimator, TransformerMixin):
-    def __init__(self, percentile=20):
-        self.percentile = percentile
+
+class MannWhitneyReductor(BaseEstimator, TransformerMixin):
+    """
+    Filtr genow po p-value testu Manna-Whitneya U.
+    PLA2Sig: p < 0.05.
+    """
+
+    def __init__(self, alpha=0.05):
+        self.alpha = alpha
         self.selected_genes_ = None
+        self.pvalues_ = None
+
+    def fit(self, X, y):
+        X0 = X.loc[y == 0].values
+        X1 = X.loc[y == 1].values
+        _, p = stats.mannwhitneyu(X0, X1, alternative='two-sided', axis=0)
+        self.pvalues_ = pd.Series(p, index=X.columns)
+        self.selected_genes_ = X.columns[self.pvalues_ < self.alpha]
+        return self
+
+    def transform(self, X):
+        X = X[self.selected_genes_]
+        print("data shape after MannWhitneyReductor: ", X.shape)
+        return X
+
+    def get_feature_names_out(self, input_features=None):
+        return np.asarray(self.selected_genes_, dtype=object)
+
+
+
+class WithinGroupVarianceReductor(BaseEstimator, TransformerMixin):
+    def __init__(self, alpha=0.05):
+        self.alpha = alpha
+        self.selected_genes_ = None
+        self.wgv_ = None
+        self.pvalues_ = None
+        self.pvalues_corrected_ = None
+        self.sigma2_ref_ = None
 
     def fit(self, X: pd.DataFrame, y=None):
-
-        y_s = pd.Series(y, index=X.index) if not isinstance(y, pd.Series) else y.reindex(X.index)
+        y_s = pd.Series(y, index=X.index) if not isinstance(y, pd.Series) \
+              else y.reindex(X.index)
         classes = y_s.unique()
-
-        # pooled within-group variance per gene
-        N = len(X)
-        K = len(classes)
+        N, K = len(X), len(classes)
+        df = N - K
         wgv = pd.Series(0.0, index=X.columns)
-
         for cls in classes:
             mask = y_s == cls
-            n_k = mask.sum()
+            n_k = int(mask.sum())
             if n_k > 1:
                 wgv += (n_k - 1) * X.loc[mask].var(ddof=1)
+        wgv /= df
+        self.wgv_ = wgv
+        sigma2_ref = float(wgv.median())
+        self.sigma2_ref_ = sigma2_ref
 
-        wgv /= (N - K)
-
-        threshold = np.percentile(wgv, self.percentile)
-        self.selected_genes_ = wgv[wgv < threshold].index
+        T = df * wgv.values / sigma2_ref
+        pvals = stats.chi2.sf(T, df)
+        self.pvalues_ = pd.Series(pvals, index=X.columns)
+        _, p_corr, _, _ = multipletests(pvals, alpha=self.alpha,
+                                        method='fdr_bh')
+        self.pvalues_corrected_ = pd.Series(p_corr, index=X.columns)
+        self.selected_genes_ = X.columns[self.pvalues_corrected_ >= self.alpha]
         return self
 
-    def transform(self, X: pd.DataFrame):
+    def transform(self, X):
         X = X[self.selected_genes_]
-        print("data shape after WithinGroupVarianceReductor: ", X.shape)
+        print(f"data shape after WithinGroupVarianceReductor: {X.shape} "
+              f"sigma^2_ref = {self.sigma2_ref_:.4g}, alpha = {self.alpha})")
         return X
 
     def get_feature_names_out(self, input_features=None):
         return np.asarray(self.selected_genes_, dtype=object)
 
 
-class CovariatesBiasReductor(BaseEstimator, TransformerMixin):
-
-    def __init__(self, covariate: pd.Series, p_thresh: float = 0.05, beta_thresh: float = None):
-        self.covariate = covariate
-        self.p_thresh = p_thresh
-        self.beta_thresh = beta_thresh
-        self.selected_genes_ = None
-
-    def fit(self, X: pd.DataFrame, y=None):
-        genes = list(X.columns)
-        cov = pd.Series(self.covariate).reindex(X.index).astype(float)
-        valid_idx = cov.dropna().index
-        cov = cov.loc[valid_idx]
-        covs = pd.DataFrame(index=valid_idx)
-        covs["covariate"] = cov
-        if y is not None:
-            y_series = pd.Series(y).reindex(X.index)
-            y_series = y_series.loc[valid_idx].astype(float)
-            covs["disease"] = y_series
-
-        covs_matrix = sm.add_constant(covs)
-        cov_col_idx = list(covs_matrix.columns).index("covariate")
-        p_values = []
-        beta_values = []
-
-        for gene in genes:
-            expr = X.loc[valid_idx, gene].astype(float).values
-            try:
-                model = sm.OLS(expr, covs_matrix.values).fit()
-                p = model.pvalues[cov_col_idx]
-                beta = model.params[cov_col_idx]
-            except Exception:
-                p, beta = np.nan, np.nan
-            p_values.append(p)
-            beta_values.append(beta)
-
-        p_values = np.array(p_values)
-        beta_values = np.array(beta_values)
-
-        p_values = np.nan_to_num(p_values, nan=1.0)
-        _, p_adj, _, _ = multipletests(p_values, method="fdr_bh")
-        keep = (p_adj >= self.p_thresh)
-        if self.beta_thresh is not None:
-            keep = keep & (np.abs(beta_values) <= self.beta_thresh)
-
-        self.selected_genes_ = [g for g, k in zip(genes, keep) if k]
-        return self
-
-    def transform(self, X: pd.DataFrame):
-        X = X[self.selected_genes_]
-        print("data shape after CovariatesBiasReductor: ", X.shape)
-        return X
-
-    def get_feature_names_out(self, input_features=None):
-        return np.asarray(self.selected_genes_, dtype=object)
+class AgeResidualBootstrapTransformer(_ResidualBootstrapBase):
+    def __init__(self, age: pd.Series, labels: pd.Series = None, **kwargs):
+        super().__init__(covariate=age, labels=labels, **kwargs)
+        self.age = age
 
 
-class CovariatesResidualTransformer(BaseEstimator, TransformerMixin):
-    """
-    Dla kazdego genu dopasowuje regresje: expression ~ covariate
-    tylko na zdrowych probkach i zastepuje ekspresje residuami.
+class SexResidualBootstrapTransformer(_ResidualBootstrapBase):
+    def __init__(self, sex: pd.Series, labels: pd.Series = None, **kwargs):
+        super().__init__(covariate=sex, labels=labels, **kwargs)
+        self.sex = sex
 
-    """
-    def __init__(self, covariate: pd.Series, labels: pd.Series = None):
-        self.covariate = covariate
-        self.labels = labels
-        self.coef_ = None
-        self.intercept_ = None
-        self.selected_genes_ = None
-
-    def _get_covariate(self, index):
-        cov = self.covariate
-        if not isinstance(cov, pd.Series):
-            cov = pd.Series(cov)
-
-        matched = cov.reindex(index)
-        if matched.notna().sum() > 0:
-            return matched.astype(float)
-
-        print("  [CovariatesResidualTransformer] WARNING: index mismatch, using positional matching")
-        return pd.Series(cov.values[:len(index)], index=index, dtype=float)
-
-    def fit(self, X: pd.DataFrame, y=None):
-        self.selected_genes_ = list(X.columns)
-        cov = self._get_covariate(X.index)
-
-        if self.labels is not None:
-            lab = self.labels.reindex(X.index)
-            healthy_idx = lab[lab == 0].index
-        else:
-            healthy_idx = X.index
-
-        cov_healthy = cov.loc[healthy_idx].dropna()
-        valid_idx = cov_healthy.index
-
-        cov_vals = cov_healthy.values
-        X_valid  = X.loc[valid_idx].values
-
-        X_design = np.column_stack([np.ones(len(cov_vals)), cov_vals])
-        coeffs, _, _, _ = np.linalg.lstsq(X_design, X_valid, rcond=None)
-
-        self.intercept_ = coeffs[0]
-        self.coef_      = coeffs[1]
-
-        return self
-
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        cov = self._get_covariate(X.index)
-        cov_vals = cov.values
-
-        cov_filled = np.where(np.isnan(cov_vals), 0.0, cov_vals)
-        predicted  = np.outer(cov_filled, self.coef_) + self.intercept_
-
-        missing_mask = np.isnan(cov_vals)
-        predicted[missing_mask] = 0.0
-
-        residuals = X[self.selected_genes_].values - predicted
-        result = pd.DataFrame(residuals, index=X.index, columns=self.selected_genes_)
-        print(f"data shape after CovariatesResidualTransformer: {result.shape}")
-        return result
-
-    def get_feature_names_out(self, input_features=None):
-        return np.asarray(self.selected_genes_, dtype=object)
+    def _prepare_covariate(self, index):
+        cov = pd.Series(self.covariate).reindex(index)
+        if not pd.api.types.is_numeric_dtype(cov):
+            cov = cov.map({"F": 0, "M": 1})
+        return cov.astype(float)

@@ -13,6 +13,8 @@ class Dataset:
         self.y = y
         self.age = self.meta['Age']
         self.sex = self.meta['Sex']
+        self.institution = meta['RealLocation']
+        self.stage = None
 
     def _get_strata(self, X, y):
         meta = self.meta.loc[X.index]
@@ -27,6 +29,7 @@ class Dataset:
         )
         stage = meta["Stage"].replace("NA", "none").fillna("none")
         stage = stage.replace({"I": "I_II", "II": "I_II"})
+        self.stage = stage
         df["stage"] = stage
 
         X = X.loc[df.index]
@@ -47,7 +50,7 @@ class Dataset:
 
         return X_stratifiable, y_stratifiable, strata_stratifiable, X_remainder, y_remainder
 
-    def get_train_test_valid_split(self, X, y, test_size=0.25, valid_size=0, random_state=2137, return_valid=True):
+    def get_train_test_valid_split(self, X, y, test_size=0.2, valid_size=0.2, random_state=2137, return_valid=True):
         X_strat, y_strat, strata, X_rem, y_rem = self._get_strata(X, y)
 
         X_train, X_temp, y_train, y_temp, strata_train, strata_temp = train_test_split(
@@ -87,6 +90,7 @@ class Dataset:
         )
 
         return X_train, X_test, X_valid, y_train, y_test, y_valid
+
 
     def get_stratified_kfold(self, X, y, n_splits=5, random_state=2137):
         X_strat, y_strat, strata, X_rem, y_rem = self._get_strata(X, y)
