@@ -31,9 +31,9 @@ data_path = r"../data/counts_pancreatic.csv"
 
 HOLDOUT_TEST_SIZE = 0.4
 BASE_SEED         = 2137
-LOG2FC_THRESHOLD  = np.log2(1.2)
+LOG2FC_THRESHOLD  = np.log2(1.5)
 DEG_PVAL          = 0.05
-LASSO_CV_FOLDS    = 100
+LASSO_CV_FOLDS    = 20
 LASSO_N_LAMBDAS   = 50
 TOP_K_MAX         = 20
 INCR_CV_FOLDS     = 10
@@ -119,8 +119,8 @@ def main():
     deg_genes = list(X_tr_deg_df.columns)
 
     print("\n=== KROK 2: LASSO ===")
-    scaler = StandardScaler().fit(X_tr_deg_df.values)
-    X_tr_z = scaler.transform(X_tr_deg_df.values)
+    scaler = StandardScaler()
+    X_tr_z = scaler.fit_transform(X_tr_deg_df.values)
     X_te_z = scaler.transform(X_te_deg_df.values)
     coefs = lasso_cv_lambda_1se(X_tr_z, y_train.values)
     print(f"[LASSO] niezerowe wsp.: {(coefs != 0).sum()} / {len(coefs)}")

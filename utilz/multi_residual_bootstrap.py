@@ -114,5 +114,5 @@ def build_covariates(meta, age='Age', sex='Sex', libsize='Lib.size', ptprc='PTPR
         'age':           meta[age].astype(float),
         'sex':           meta[sex].map({'F': 0, 'M': 1}).astype(float),
         'log10_libsize': np.log10(meta[libsize].astype(float)),
-        'ptprc':         meta[ptprc].astype(float),
+        #'ptprc':         meta[ptprc].astype(float),
     }, index=meta.index)

@@ -45,10 +45,8 @@ TOP_K_FINAL       = 20
 ENET_C            = 0.1
 ENET_L1_RATIO     = 0.9
 BASE_SEED         = 2137
-MEAN_PERCENTILE = 5
-WITHIN_GROUP_VARIANCE_PERCENTILE = 95
 ANOVA_FDR_THRESHOLD = 0.1
-LOG2FC = 0.1
+LOG2FC_THRESHOLD  = np.log2(1.2)
 
 def build_prepipeline(ds, labels=None):
     cov = build_covariates(ds.meta)
@@ -64,7 +62,7 @@ def build_prepipeline(ds, labels=None):
 def build_iter_pipeline():
     return Pipeline([
         ('AnovaFDRReductor', AnovaFdrReductor(alpha=ANOVA_FDR_THRESHOLD)),
-        ('Log2FCReductor', Log2FCReductor(min_abs_log2fc=LOG2FC)),
+        ('Log2FCReductor', Log2FCReductor(min_abs_log2fc=LOG2FC_THRESHOLD)),
         ('WithinGroupVarianceReductor', WithinGroupVarianceReductor(alpha=0.05)),
         ('scaler', StandardScaler()),
     ])
