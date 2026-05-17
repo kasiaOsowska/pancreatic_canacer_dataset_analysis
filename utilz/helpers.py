@@ -149,15 +149,17 @@ def plot_roc_curve(X, y, title):
     plt.show()
 
 
-def plot_split_balance(splits: dict):
+def plot_split_balance(splits: dict, save_path: str = None):
     """
     splits = {
         'Train': (y_train, sex_train, age_train, stage_train),
         'Test':  (y_test,  sex_test,  age_test,  stage_test),
         'Valid': (y_valid, sex_valid, age_valid,  stage_valid),
     }
+    save_path: jeśli podane, zapisuje wykres do pliku PNG (wymaga pakietu kaleido).
     """
     COLORS = {'Train': '#6366f1', 'Test': '#22d3ee', 'Valid': '#f59e0b'}
+    LABELS = {'Train': 'Treningowy', 'Test': 'Testowy', 'Valid': 'Walidacyjny'}
     names = list(splits.keys())
 
     all_y   = splits[names[0]][0]
@@ -173,43 +175,50 @@ def plot_split_balance(splits: dict):
 
     fig = make_subplots(
         rows=1, cols=4,
-        subplot_titles=["Class distribution", "Sex distribution", "Age distribution", "Stage distribution"],
-        horizontal_spacing=0.08,
+        subplot_titles=["Rozkład klas", "Rozkład płci", "Rozkład wieku", "Rozkład stadium"],
+        horizontal_spacing=0.12,
     )
 
     for s in names:
         fig.add_trace(go.Bar(
-            name=s, x=class_vals,
+            name=LABELS.get(s, s), x=class_vals,
             y=[class_counts[s].get(c, 0) for c in class_vals],
             marker_color=COLORS[s], showlegend=True,
         ), row=1, col=1)
 
         fig.add_trace(go.Bar(
-            name=s, x=sex_vals,
+            name=LABELS.get(s, s), x=sex_vals,
             y=[sex_counts[s].get(sv, 0) for sv in sex_vals],
             marker_color=COLORS[s], showlegend=False,
         ), row=1, col=2)
 
         fig.add_trace(go.Box(
-            name=s, y=age_data[s],
+            name=LABELS.get(s, s), y=age_data[s],
             marker_color=COLORS[s], boxmean=True, showlegend=False,
         ), row=1, col=3)
 
         fig.add_trace(go.Bar(
-            name=s, x=stage_vals,
+            name=LABELS.get(s, s), x=stage_vals,
             y=[stage_counts[s].get(sv, 0) for sv in stage_vals],
             marker_color=COLORS[s], showlegend=False,
         ), row=1, col=4)
 
     fig.update_layout(
         barmode='group',
-        title={"text": "Train / Test / Valid split balance"},
+        template='plotly_white',
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        title={"text": ""},
         legend=dict(orientation='h', yanchor='bottom', y=1.08, xanchor='center', x=0.5),
     )
-    fig.update_yaxes(title_text="Proportion", tickformat=".0%", row=1, col=1)
-    fig.update_yaxes(title_text="Proportion", tickformat=".0%", row=1, col=2)
-    fig.update_yaxes(title_text="Age (years)", row=1, col=3)
-    fig.update_yaxes(title_text="Proportion", tickformat=".0%", row=1, col=4)
+    fig.update_yaxes(title_text="Udział", tickformat=".0%", row=1, col=1)
+    fig.update_yaxes(title_text="Udział", tickformat=".0%", row=1, col=2)
+    fig.update_yaxes(title_text="Wiek (lata)", row=1, col=3)
+    fig.update_yaxes(title_text="Udział", tickformat=".0%", row=1, col=4)
+
+    if save_path is not None:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        fig.write_image(save_path, scale=2)
 
     fig.show()
 
@@ -259,7 +268,7 @@ def plot_group_overview(splits: dict, colors: dict = None, title: str = None):
             name=s, y=age_data[s],
             marker_color=color,
             boxmean=True,
-            showlegend=True,
+            showlegend=False,
         ), row=1, col=2)
 
     fig.update_layout(

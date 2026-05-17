@@ -157,7 +157,7 @@ class WithinGroupVarianceReductor(BaseEstimator, TransformerMixin):
         _, p_corr, _, _ = multipletests(pvals, alpha=self.alpha,
                                         method='fdr_bh')
         self.pvalues_corrected_ = pd.Series(p_corr, index=X.columns)
-        self.selected_genes_ = X.columns[self.pvalues_corrected_ >= self.alpha]
+        self.selected_genes_ = X.columns[self.pvalues_corrected_ <= self.alpha]
         return self
 
     def transform(self, X):
